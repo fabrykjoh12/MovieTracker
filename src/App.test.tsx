@@ -7,7 +7,7 @@ import App from "./App";
 describe("critical product flows", () => {
   beforeEach(() => {
     localStorage.clear();
-    window.history.pushState({}, "", "/");
+    window.location.hash = "/";
   });
 
   it("adds an unsaved discovery, moves it to Up Next, and logs the watch", async () => {
@@ -55,7 +55,7 @@ describe("critical product flows", () => {
   });
 
   it("keeps reactions ahead of progress out of the rendered discussion", () => {
-    window.history.pushState({}, "", "/title/severance");
+    window.location.hash = "/title/severance";
     render(<App />);
 
     expect(
