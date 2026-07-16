@@ -16,7 +16,11 @@ concurrency:
 
 jobs:
   build:
+    environment: github-pages
     runs-on: ubuntu-latest
+    env:
+      VITE_NEON_AUTH_URL: ${{ vars.VITE_NEON_AUTH_URL }}
+      VITE_NEON_DATA_API_URL: ${{ vars.VITE_NEON_DATA_API_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -26,6 +30,13 @@ jobs:
         with:
           node-version: 24
           cache: npm
+
+      - name: Verify deployment configuration
+        run: |
+          if [ -z "$VITE_NEON_AUTH_URL" ] || [ -z "$VITE_NEON_DATA_API_URL" ]; then
+            echo "::error::Add VITE_NEON_AUTH_URL and VITE_NEON_DATA_API_URL as GitHub Actions variables."
+            exit 1
+          fi
 
       - name: Install dependencies
         run: npm ci
@@ -38,9 +49,6 @@ jobs:
 
       - name: Build
         run: npm run build
-        env:
-          VITE_NEON_AUTH_URL: ${{ vars.VITE_NEON_AUTH_URL }}
-          VITE_NEON_DATA_API_URL: ${{ vars.VITE_NEON_DATA_API_URL }}
 
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
