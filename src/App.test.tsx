@@ -1,8 +1,13 @@
 import "@testing-library/jest-dom/vitest";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import App from "./App";
+
+vi.mock("./lib/neon", () => ({
+  getNeonClient: () => Promise.resolve(null),
+  isNeonConfigured: false,
+}));
 
 describe("critical product flows", () => {
   beforeEach(() => {
@@ -69,5 +74,23 @@ describe("critical product flows", () => {
       ),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Unlocks after episode 8")).toBeInTheDocument();
+  });
+
+  it("labels an unconfigured deployment as browser-only demo mode", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("link", { name: "Account and data" }));
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Cloud accounts are ready to connect.",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/library remains safely in this browser only/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText("VITE_NEON_AUTH_URL")).toBeInTheDocument();
+    expect(screen.getByText("VITE_NEON_DATA_API_URL")).toBeInTheDocument();
   });
 });

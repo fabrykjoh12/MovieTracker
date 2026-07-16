@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
 
 const navigation = [
   { to: "/", label: "Home", icon: Home },
@@ -22,6 +23,7 @@ const navigation = [
 ];
 
 export function Shell() {
+  const { status, user } = useAuth();
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     localStorage.getItem("movietracker:theme") === "light" ? "light" : "dark",
   );
@@ -76,8 +78,21 @@ export function Shell() {
           >
             {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <NavLink to="/profile" className="avatar" aria-label="Your profile">
-            AK
+          <NavLink
+            to="/account"
+            className="account-link"
+            aria-label="Account and data"
+          >
+            <span className={`mode-badge ${status}`}>
+              {status === "demo"
+                ? "Demo"
+                : status === "authenticated"
+                  ? "Synced"
+                  : "Account"}
+            </span>
+            <span className="avatar">
+              {user?.email?.slice(0, 2).toUpperCase() ?? "AK"}
+            </span>
           </NavLink>
         </div>
       </header>
