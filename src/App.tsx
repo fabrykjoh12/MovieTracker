@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes } from "react-router-dom";
 import { Shell } from "./components/Shell";
 import { StoreProvider } from "./store";
 import { Home } from "./pages/Home";
@@ -11,7 +11,7 @@ import { MediaDetail } from "./pages/MediaDetail";
 export default function App() {
   return (
     <StoreProvider>
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route element={<Shell />}>
             <Route index element={<Home />} />
@@ -22,7 +22,7 @@ export default function App() {
             <Route path="title/:id" element={<MediaDetail />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </StoreProvider>
   );
 }
