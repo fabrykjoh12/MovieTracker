@@ -8,11 +8,20 @@ The beta is ready when an invited user can sign in, find real media, maintain a 
 
 ## Current state
 
-The deployed application is a polished interactive prototype. Core tracking, Verdict, queue ordering, Tonight filters, and several library views work, but application data currently comes from local seed data and is persisted only in browser `localStorage`.
+The deployed application is a polished interactive prototype with working Neon authentication and a production database foundation. Core tracking, Verdict, queue ordering, Tonight filters, and several library views work, but application data currently comes from local seed data and is persisted only in browser `localStorage`.
+
+Production checkpoint on 2026-07-17:
+
+- GitHub Pages is deployed at `https://fabrykjoh12.github.io/MovieTracker/`.
+- Neon Auth sign-in, sign-out, session restoration, and password setup/reset work locally and are compiled into the production deployment.
+- The initial Neon migration is applied: 19 public tables, RLS on all 19, and 41 policies.
+- The existing Auth user was backfilled into `public.profiles`.
+- GitHub Actions validates required Neon variables and refuses to publish an unconfigured demo build.
+- Local formatting, lint, type checking, 23 tests, production build, dependency audit, and repeat-migration checks pass.
 
 The following areas are demonstrations rather than production integrations:
 
-- Accounts and profiles
+- Profile content beyond the authenticated identity
 - Cross-device persistence
 - Media search and metadata
 - Streaming availability
@@ -40,11 +49,13 @@ Status: **In progress**
 
 - [ ] Create a Neon project with separate development and production branches.
 - [x] Add typed Neon Auth and Data API configuration with a safe unconfigured state.
-- [ ] Configure environment variables in local development and GitHub Pages.
+- [x] Configure environment variables in local development and GitHub Pages.
 - [x] Add authentication state management.
 - [x] Add invited-account email/password sign-in and sign-out actions.
+- [x] Add password setup and reset flows compatible with GitHub Pages routing.
 - [ ] Add invite-only registration enforcement.
-- [ ] Configure allowed origins and the production domain in Neon Auth.
+- [x] Configure allowed origins for local development and the production domain.
+- [x] Fail deployment when the public Neon configuration is missing.
 
 ### Database and authorization
 
@@ -52,6 +63,7 @@ Status: **In progress**
 - [x] Add primary foreign-key and query indexes.
 - [x] Enable Row Level Security on exposed tables.
 - [x] Add initial owner, friendship, shelf, spoiler, and room policies.
+- [x] Apply and audit the initial migration against the production Neon branch.
 - [ ] Generate database TypeScript types from the deployed schema.
 - [ ] Add automated database and RLS policy tests.
 - [ ] Add development seed data that is separate from production.
@@ -185,11 +197,24 @@ Every user-data type has an authorization policy, backup strategy, export path, 
 
 ## Immediate implementation sequence
 
-1. Finish Neon Auth and Data API configuration and deploy the initial migration.
-2. Generate database types and test all RLS policies.
-3. Add repository interfaces and authenticated library persistence.
-4. Replace seeded media with a server-side metadata adapter.
-5. Complete the real daily-use flows before expanding social features.
+1. Generate complete database types and add live RLS policy tests.
+2. Define repository interfaces and move `localStorage` behind a local implementation.
+3. Seed a development media catalog with stable provider-to-UUID mappings.
+4. Implement authenticated library persistence: load, add, move to Up Next, refresh, and cross-device sync.
+5. Persist episode tracking, undo history, Verdicts, qualities, and rankings with optimistic rollback.
+6. Add an idempotent migration path for existing local demo data.
+7. Replace seeded media discovery with a trusted server-side metadata adapter.
+8. Complete real daily-use flows before expanding social features.
+
+## Next acceptance test
+
+The next slice is complete when two accounts can use the production site and demonstrate all of the following:
+
+1. Account A adds a title, moves it to Up Next, tracks an episode, and records a Verdict.
+2. A refresh and second device show the same state.
+3. Account B cannot read or change Account A’s private rows.
+4. Failed mutations roll back visibly without losing the previous state.
+5. Demo mode continues to work without Neon environment variables.
 
 ## References
 
