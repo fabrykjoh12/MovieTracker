@@ -58,6 +58,8 @@ npm run dev
 
 For production, add `TMDB_READ_ACCESS_TOKEN` as a GitHub **Actions secret** under **Settings → Secrets and variables → Actions → Secrets**. Re-run the Pages workflow or push a commit. The workflow fetches TMDB on the trusted build runner and publishes only public metadata and image URLs. Never prefix this token with `VITE_` or add it as a GitHub variable.
 
+The Pages workflow validates this secret before installing dependencies. If the configuration step fails, confirm the name is exactly `TMDB_READ_ACCESS_TOKEN` and that it was created as a repository or `github-pages` environment secret rather than as an Actions variable.
+
 The source mapping lives in `catalog/tmdb-seeds.json`; generated browser-safe metadata lives in `src/generated/tmdbCatalog.ts`. Missing images or provider failures retain the local fallback. The Profile page shows the required TMDB attribution whenever generated TMDB data is present.
 
 This build-time catalog is the first metadata slice. Whole-database search and adding arbitrary results still require the planned rate-limited server-side metadata proxy and database cache.

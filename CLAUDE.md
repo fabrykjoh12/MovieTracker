@@ -18,6 +18,7 @@ Read `README.md` and `roadmap.md` before changing architecture or scope.
 - Production deployment: `.github/workflows/deploy-pages.yml`
 - The Pages workflow validates, builds, and deploys on pushes to `main`.
 - The workflow intentionally fails if either public Neon URL is missing, preventing a silent demo-mode deployment.
+- The workflow also fails before dependency installation when `TMDB_READ_ACCESS_TOKEN` is missing, preventing production from silently returning to demonstration artwork.
 - A successful production deployment was verified on 2026-07-17. Workflow run `29544020043` completed successfully, the public page returned HTTP 200, and the live bundle contained both the Neon Auth configuration and password flow.
 
 ## Stack
