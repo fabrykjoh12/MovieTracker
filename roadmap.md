@@ -21,7 +21,7 @@ Production checkpoint on 2026-07-17:
 - GitHub Actions validates required Neon variables and refuses to publish an unconfigured demo build.
 - Repository contracts, database mappers, local persistence, Neon library persistence, explicit retry-safe first sync, optimistic rollback, and stale-write rejection are implemented.
 - The first production account completed cloud initialization: 12 mapped library rows, 6 distinct watch events, 5 Verdicts, and 4 exact-progress rows were verified with no duplicate client event IDs.
-- A secure build-time TMDB adapter can enrich all 14 curated titles with real posters, backdrops, synopsis, runtime, year, and genres while retaining the explicit Unsplash fallback. Production activation is waiting for the `TMDB_READ_ACCESS_TOKEN` GitHub Actions secret.
+- A secure build-time TMDB adapter enriches all 14 curated titles with real posters, backdrops, synopsis, runtime, year, and genres while retaining an explicit local fallback. Production deployment now requires the `TMDB_READ_ACCESS_TOKEN` GitHub Actions secret rather than silently publishing demo artwork.
 
 The following areas are demonstrations rather than production integrations:
 

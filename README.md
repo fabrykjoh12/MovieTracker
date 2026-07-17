@@ -39,7 +39,7 @@ When a signed-in account has no initialized cloud library, MovieTracker does not
 
 ## Real TMDB artwork
 
-The curated 14-title catalog can be enriched with real posters, backdrops, synopsis, runtime, year, and genres from TMDB without exposing the provider token to the browser. Until configured, the application continues to use its explicit Unsplash demonstration fallback.
+The curated 14-title catalog can be enriched with real posters, backdrops, synopsis, runtime, year, and genres from TMDB without exposing the provider token to the browser. Local development retains an explicit Unsplash demonstration fallback; production deployment requires TMDB configuration so it cannot silently publish demo artwork.
 
 1. Create or sign in to a TMDB account and request API access from the API section of account settings.
 2. Copy the **API Read Access Token**, not a user session token.
