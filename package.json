@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs"
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
+    "db:verify": "node --env-file-if-exists=.env.local scripts/verify-database.mjs"
   },
   "dependencies": {
     "@neondatabase/neon-js": "^0.6.2-beta",

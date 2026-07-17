@@ -4,7 +4,7 @@
 
 MovieTracker is a premium movie and series journal built around four connected experiences: Tonight, Next Up, My Library, and My Taste. The product promise is: “Find something worth watching. Track it effortlessly. Build a library that feels like you.” The working tagline is “Your life in stories.”
 
-The current application is a polished, responsive React prototype with real Neon authentication and a production database foundation. Most media, library, tracking, Verdict, shelf, social, and recommendation state still comes from realistic seed data and persists in browser `localStorage`. Do not describe those flows as cloud-synchronized until the Neon repositories are implemented.
+The current application is a polished, responsive React prototype with real Neon authentication and a production database foundation. Media discovery, shelves, social activity, and recommendations still use realistic seed data. Authenticated library, queue, tracking, undo, and title-level Verdict persistence are implemented through Neon, but must not be described as production-verified cross-device synchronization until the acceptance test in `roadmap.md` passes.
 
 Read `README.md` and `roadmap.md` before changing architecture or scope.
 
@@ -63,7 +63,7 @@ GitHub Actions reads the two public `VITE_` values from Actions variables. Repos
 
 ## Backend status
 
-Neon is configured on the `production` branch. The migration `neon/migrations/202607170001_initial_beta_schema.sql` has been applied and recorded by the checksum-aware runner in `scripts/migrate.mjs`.
+Neon is configured on the `production` branch. Both migrations in `neon/migrations` have been applied and recorded by the checksum-aware runner in `scripts/migrate.mjs`. The second migration adds a stable 14-title development catalog with explicit `metadata.localId` mappings.
 
 The live database audit completed with:
 
@@ -76,7 +76,7 @@ The live database audit completed with:
 
 The initial schema supports profiles, beta invites, media, seasons, episodes, library state, watch events, Verdicts, pairwise comparisons, shelves, friendships, activities, spoiler-scoped reviews, Watch Together rooms, participants, candidates, and votes.
 
-`src/lib/database.types.ts` is only a partial handwritten type surface. Generate complete types from the deployed schema before building broad repository coverage.
+`src/lib/database.types.ts` is generated from the deployed schema and covers all public tables, relationships, and enums. Regenerate it after schema migrations; do not hand-maintain a partial substitute.
 
 ## Authentication status
 
@@ -94,22 +94,17 @@ Important limitation: the app does not expose public registration, but the curre
 
 ## Current data flow
 
-`src/store.tsx` remains the application state source. It loads realistic seed content from `src/data.ts` and writes useful demo state to `localStorage`. Authenticated sessions do not yet hydrate library data from Neon.
+`src/store.tsx` remains the application state source, but persistence is now behind repositories. Demo and signed-out sessions use `src/repositories/localStateRepository.ts`. Signed-in sessions use `src/repositories/neonLibraryRepository.ts` after Neon library data exists.
 
-The next implementation must preserve demo mode while introducing repository boundaries:
+For an empty cloud library, the app deliberately leaves the browser library untouched and shows **Copy library to Neon** on the Account page. That import uses stable catalog mappings and client event IDs so it is safe to retry. It preserves coarse historical watch dates in private intent metadata and does not silently copy data merely because someone signs in.
 
-1. Define domain repository interfaces for profile, media catalog, library state, watch events, Verdicts, rankings, and shelves.
-2. Move direct `localStorage` access behind a local repository implementation.
-3. Add Neon Data API implementations using the authenticated `neon-js` client.
-4. Generate complete database types and map database rows to existing domain types.
-5. Seed or import the current realistic media records into a development dataset so user rows can reference actual database media UUIDs.
-6. Hydrate authenticated state without replacing the UI with loading flashes or losing local demo data.
-7. Add optimistic mutations with rollback and screen-reader status updates.
-8. Add a deliberate, idempotent local-data migration flow; never silently duplicate viewing history.
+After first sync, library state, queue order, exact numeric series progress, watch events, undo removal, title-level Verdicts, qualities, tags, and rankings are sent through the authenticated Neon Data API. Mutations apply optimistically in a serialized queue; a failed latest mutation rolls back, while ambiguous concurrent failure triggers a cloud reload and visible error state. Cloud-owned library data is not written into the generic signed-out demo cache.
+
+Repository and mapping unit tests exist, and `npm run db:verify` checks the deployed table/RLS contract. The two-account runtime isolation test still needs test credentials or a second provisioned beta account.
 
 ## Next vertical slice
 
-Implement one complete cross-device library flow before expanding metadata or social features:
+Complete production acceptance for the implemented cross-device library flow before expanding metadata or social features:
 
 1. Load the signed-in profile and library.
 2. Add a title to the library.
@@ -125,17 +120,23 @@ Add unit tests for mapping and repository behavior plus live integration tests f
 ## Important files
 
 - `src/App.tsx`: routing and provider composition
-- `src/store.tsx`: current local state and mutations
+- `src/store.tsx`: optimistic state, repository selection, hydration, and first-sync coordination
 - `src/domain.ts`: core domain behavior
 - `src/domain.test.ts`: domain tests
 - `src/data.ts`: realistic demo catalog and activity
 - `src/auth/AuthProvider.tsx`: Neon Auth session and password actions
 - `src/lib/neon.ts`: lazy Neon client configuration
-- `src/lib/database.types.ts`: partial database types; not complete
+- `src/lib/database.types.ts`: complete generated public-schema types
+- `src/repositories/contracts.ts`: repository boundaries
+- `src/repositories/localStateRepository.ts`: browser-only demo persistence
+- `src/repositories/neonLibraryRepository.ts`: authenticated library, tracking, and Verdict persistence
+- `src/repositories/mappers.ts`: database row to domain-state mapping
 - `src/pages/Account.tsx`: account, sign-in, and password-reset UI
 - `src/pages/Account.test.tsx`: password flow interactions
 - `neon/migrations/202607170001_initial_beta_schema.sql`: production schema and policies
+- `neon/migrations/202607170002_seed_development_catalog.sql`: stable beta catalog mapping
 - `scripts/migrate.mjs`: transactional checksum-aware migration runner
+- `scripts/verify-database.mjs`: live schema and RLS contract verification
 - `.github/workflows/deploy-pages.yml`: validation and Pages deployment
 - `roadmap.md`: source of truth for product sequencing
 
@@ -159,7 +160,7 @@ The last full local validation completed successfully with:
 - Prettier
 - ESLint
 - TypeScript type checking
-- 23 Vitest tests across three files
+- 28 Vitest tests across five files
 - Vite production build
 - `npm audit --audit-level=moderate` with zero vulnerabilities
 - Repeat migration returning `Already applied`
@@ -174,4 +175,4 @@ The in-editor browser runtime was unavailable during the last session. Productio
 - Include every uncommitted session-edited file in the proposal after cross-checking session files with `git status`.
 - After the user approves a commit proposal, push it to `origin` automatically. The user explicitly does not want to be asked to run `git push`.
 - Monitor the resulting Pages workflow and verify the live bundle when deployment-related files change.
-- Do not mark the overall product complete: authentication and the database foundation are working, but cross-device product data is not implemented yet.
+- Do not mark the overall product complete: authentication, the database foundation, and the first cloud-library implementation are working, but cross-device and two-account isolation acceptance are still pending.

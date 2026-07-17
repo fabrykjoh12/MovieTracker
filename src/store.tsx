@@ -1,12 +1,16 @@
 /* eslint-disable react-refresh/only-export-components */
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
   useMemo,
   useReducer,
+  useRef,
+  useState,
 } from "react";
 import type { Dispatch, PropsWithChildren } from "react";
+import { useAuth } from "./auth/AuthProvider";
 import { initialState, media } from "./data";
 import {
   completeSeason,
@@ -16,6 +20,13 @@ import {
   startRewatch,
   undoLastTracking,
 } from "./domain";
+import { createLocalStateRepository } from "./repositories/localStateRepository";
+import { createNeonLibraryRepository } from "./repositories/neonLibraryRepository";
+import type {
+  LibrarySnapshot,
+  LibrarySyncRepository,
+} from "./repositories/contracts";
+import { getNeonClient } from "./lib/neon";
 import type {
   AppState,
   LibraryStatus,
@@ -42,20 +53,11 @@ type Action =
   | { type: "queue"; mediaId: string; direction: -1 | 1 }
   | { type: "filters"; filters: Partial<TonightFilters> }
   | { type: "vote"; mediaId: string; vote: "yes" | "maybe" | "no" }
+  | { type: "hydrate-library"; snapshot: LibrarySnapshot }
+  | { type: "replace-state"; state: AppState }
   | { type: "reset" };
 
-const key = "movietracker:v1";
-
-const loadState = (): AppState => {
-  try {
-    const saved = localStorage.getItem(key);
-    if (!saved) return initialState;
-    const parsed = JSON.parse(saved) as AppState;
-    return parsed.version === initialState.version ? parsed : initialState;
-  } catch {
-    return initialState;
-  }
-};
+const localStateRepository = createLocalStateRepository();
 
 export const reducer = (state: AppState, action: Action): AppState => {
   const now = new Date().toISOString();
@@ -211,24 +213,241 @@ export const reducer = (state: AppState, action: Action): AppState => {
           ),
         },
       };
+    case "hydrate-library":
+      return {
+        ...state,
+        userMedia: action.snapshot.userMedia,
+        events: action.snapshot.events,
+        queue: action.snapshot.queue,
+      };
+    case "replace-state":
+      return action.state;
     case "reset":
       return initialState;
   }
 };
 
+export type LibrarySyncStatus =
+  "browser" | "connecting" | "needs-import" | "saving" | "synced" | "error";
+
+interface LibrarySyncState {
+  status: LibrarySyncStatus;
+  message?: string;
+}
+
 interface StoreValue {
   state: AppState;
   dispatch: Dispatch<Action>;
+  librarySync: LibrarySyncState;
+  startCloudSync: () => Promise<void>;
+  retryCloudSync: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
 
 export function StoreProvider({ children }: PropsWithChildren) {
-  const [state, dispatch] = useReducer(reducer, undefined, loadState);
+  const { status: authStatus, user } = useAuth();
+  const userId = user?.id;
+  const [state, baseDispatch] = useReducer(
+    reducer,
+    initialState,
+    localStateRepository.load,
+  );
+  const stateRef = useRef(state);
+  const cloudRepositoryRef = useRef<LibrarySyncRepository | null>(null);
+  const mutationChainRef = useRef(Promise.resolve());
+  const mutationVersionRef = useRef(0);
+  const syncStatusRef = useRef<LibrarySyncStatus>("browser");
+  const [librarySync, setLibrarySyncState] = useState<LibrarySyncState>({
+    status: "browser",
+  });
+
+  const setLibrarySync = useCallback((next: LibrarySyncState) => {
+    syncStatusRef.current = next.status;
+    setLibrarySyncState(next);
+  }, []);
+
+  const replaceState = useCallback((next: AppState) => {
+    stateRef.current = next;
+    baseDispatch({ type: "replace-state", state: next });
+  }, []);
+
+  const hydrateLibrary = useCallback(
+    (snapshot: LibrarySnapshot) => {
+      replaceState(
+        reducer(stateRef.current, { type: "hydrate-library", snapshot }),
+      );
+    },
+    [replaceState],
+  );
+
+  const loadCloudLibrary = useCallback(
+    async (repository: LibrarySyncRepository) => {
+      setLibrarySync({ status: "connecting" });
+      try {
+        const snapshot = await repository.load();
+        if (cloudRepositoryRef.current !== repository) return;
+        const hasCloudData =
+          Object.keys(snapshot.userMedia).length > 0 ||
+          snapshot.events.length > 0;
+        if (!hasCloudData) {
+          setLibrarySync({ status: "needs-import" });
+          return;
+        }
+        hydrateLibrary(snapshot);
+        setLibrarySync({ status: "synced" });
+      } catch (error) {
+        if (cloudRepositoryRef.current !== repository) return;
+        setLibrarySync({
+          status: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "The cloud library could not be loaded.",
+        });
+      }
+    },
+    [hydrateLibrary, setLibrarySync],
+  );
+
   useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(state));
-  }, [state]);
-  const value = useMemo(() => ({ state, dispatch }), [state]);
+    let cancelled = false;
+
+    const connect = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+
+      if (authStatus === "loading") {
+        setLibrarySync({ status: "connecting" });
+        return;
+      }
+
+      if (authStatus !== "authenticated" || !userId) {
+        cloudRepositoryRef.current = null;
+        mutationVersionRef.current += 1;
+        setLibrarySync({ status: "browser" });
+        replaceState(localStateRepository.load(initialState));
+        return;
+      }
+
+      try {
+        const client = await getNeonClient();
+        if (!client) throw new Error("Neon is not configured.");
+        if (cancelled) return;
+        const repository = createNeonLibraryRepository(client, userId);
+        cloudRepositoryRef.current = repository;
+        await loadCloudLibrary(repository);
+      } catch (error) {
+        if (cancelled) return;
+        setLibrarySync({
+          status: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "The cloud library could not be connected.",
+        });
+      }
+    };
+
+    void connect();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authStatus, loadCloudLibrary, replaceState, setLibrarySync, userId]);
+
+  const dispatch = useCallback<Dispatch<Action>>(
+    (action) => {
+      const previous = stateRef.current;
+      const next = reducer(previous, action);
+      if (next === previous) return;
+      replaceState(next);
+
+      const repository = cloudRepositoryRef.current;
+      if (
+        !repository ||
+        (syncStatusRef.current !== "synced" &&
+          syncStatusRef.current !== "saving")
+      ) {
+        localStateRepository.save(next);
+        return;
+      }
+
+      setLibrarySync({ status: "saving" });
+      const mutationVersion = ++mutationVersionRef.current;
+      mutationChainRef.current = mutationChainRef.current
+        .catch(() => undefined)
+        .then(() => repository.persistChanges(previous, next))
+        .then(() => {
+          if (
+            mutationVersionRef.current === mutationVersion &&
+            cloudRepositoryRef.current === repository
+          ) {
+            setLibrarySync({ status: "synced" });
+          }
+        })
+        .catch(async (error: unknown) => {
+          if (cloudRepositoryRef.current !== repository) return;
+          if (stateRef.current === next) {
+            replaceState(previous);
+          } else {
+            try {
+              hydrateLibrary(await repository.load());
+            } catch {
+              // Preserve the latest optimistic state while reporting the error.
+            }
+          }
+          setLibrarySync({
+            status: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "The change could not be saved and was rolled back.",
+          });
+        });
+    },
+    [hydrateLibrary, replaceState, setLibrarySync],
+  );
+
+  const startCloudSync = useCallback(async () => {
+    const repository = cloudRepositoryRef.current;
+    if (!repository) return;
+    setLibrarySync({ status: "saving" });
+    const current = stateRef.current;
+    try {
+      const imported = await repository.import({
+        userMedia: current.userMedia,
+        events: current.events,
+        queue: current.queue,
+      });
+      hydrateLibrary(imported);
+      setLibrarySync({ status: "synced" });
+    } catch (error) {
+      setLibrarySync({
+        status: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "The browser library could not be copied to Neon.",
+      });
+    }
+  }, [hydrateLibrary, setLibrarySync]);
+
+  const retryCloudSync = useCallback(async () => {
+    const repository = cloudRepositoryRef.current;
+    if (repository) await loadCloudLibrary(repository);
+  }, [loadCloudLibrary]);
+
+  const value = useMemo(
+    () => ({
+      state,
+      dispatch,
+      librarySync,
+      startCloudSync,
+      retryCloudSync,
+    }),
+    [dispatch, librarySync, retryCloudSync, startCloudSync, state],
+  );
   return (
     <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
   );

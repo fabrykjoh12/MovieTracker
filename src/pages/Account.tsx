@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import { useStore } from "../store";
 
 type AccountMode =
   "sign-in" | "request-reset" | "reset-password" | "reset-sent";
@@ -41,6 +42,7 @@ export function Account() {
     resetPassword,
     signOut,
   } = useAuth();
+  const { state, librarySync, startCloudSync, retryCloudSync } = useStore();
   const [resetToken] = useState(readResetToken);
   const [mode, setMode] = useState<AccountMode>(
     resetToken ? "reset-password" : "sign-in",
@@ -164,6 +166,58 @@ export function Account() {
               <p className="eyebrow">SIGNED IN</p>
               <h2>Welcome back.</h2>
               <p>{user.email}</p>
+              <div className={`account-sync-panel ${librarySync.status}`}>
+                {librarySync.status === "needs-import" ? (
+                  <>
+                    <strong>Finish setting up your cloud library</strong>
+                    <p>
+                      Copy {Object.keys(state.userMedia).length} browser titles
+                      to this account. The import is deliberate and safe to
+                      retry, so viewing history will not be duplicated.
+                    </p>
+                    <button
+                      className="primary-button"
+                      type="button"
+                      onClick={() => void startCloudSync()}
+                    >
+                      <Database size={17} /> Copy library to Neon
+                    </button>
+                  </>
+                ) : librarySync.status === "synced" ? (
+                  <>
+                    <strong>Cloud library connected</strong>
+                    <p>
+                      Library changes now follow this account across browsers
+                      and devices.
+                    </p>
+                  </>
+                ) : librarySync.status === "saving" ? (
+                  <>
+                    <strong>Saving your library…</strong>
+                    <p>Keep this page open while the first copy finishes.</p>
+                  </>
+                ) : librarySync.status === "error" ? (
+                  <>
+                    <strong>Cloud sync needs attention</strong>
+                    <p role="alert">
+                      {librarySync.message ??
+                        "The library could not be connected."}
+                    </p>
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => void retryCloudSync()}
+                    >
+                      Try again
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <strong>Connecting your library…</strong>
+                    <p>Checking this account’s private Neon data.</p>
+                  </>
+                )}
+              </div>
               <button
                 className="secondary-button"
                 type="button"

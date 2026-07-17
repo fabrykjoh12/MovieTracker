@@ -8,21 +8,23 @@ The beta is ready when an invited user can sign in, find real media, maintain a 
 
 ## Current state
 
-The deployed application is a polished interactive prototype with working Neon authentication and a production database foundation. Core tracking, Verdict, queue ordering, Tonight filters, and several library views work, but application data currently comes from local seed data and is persisted only in browser `localStorage`.
+The deployed application is a polished interactive prototype with working Neon authentication and a production database foundation. Demo mode remains local-first. The repository now contains the first Neon library synchronization path, including an explicit, idempotent browser-to-cloud import; production account and cross-device acceptance are still pending.
 
 Production checkpoint on 2026-07-17:
 
 - GitHub Pages is deployed at `https://fabrykjoh12.github.io/MovieTracker/`.
 - Neon Auth sign-in, sign-out, session restoration, and password setup/reset work locally and are compiled into the production deployment.
 - The initial Neon migration is applied: 19 public tables, RLS on all 19, and 41 policies.
+- The complete schema types were generated from Neon, and a live schema contract verifies all RLS-enabled tables, owner policies, and anonymous grants.
+- A stable 14-title development catalog is applied through a second checksum-protected migration.
 - The existing Auth user was backfilled into `public.profiles`.
 - GitHub Actions validates required Neon variables and refuses to publish an unconfigured demo build.
-- Local formatting, lint, type checking, 23 tests, production build, dependency audit, and repeat-migration checks pass.
+- Repository contracts, database mappers, local persistence, Neon library persistence, explicit first sync, and optimistic rollback are implemented.
 
 The following areas are demonstrations rather than production integrations:
 
 - Profile content beyond the authenticated identity
-- Cross-device persistence
+- Cross-device persistence has not completed its two-device production acceptance test.
 - Media search and metadata
 - Streaming availability
 - Friend relationships and activity
@@ -64,18 +66,22 @@ Status: **In progress**
 - [x] Enable Row Level Security on exposed tables.
 - [x] Add initial owner, friendship, shelf, spoiler, and room policies.
 - [x] Apply and audit the initial migration against the production Neon branch.
-- [ ] Generate database TypeScript types from the deployed schema.
-- [ ] Add automated database and RLS policy tests.
-- [ ] Add development seed data that is separate from production.
+- [x] Generate database TypeScript types from the deployed schema.
+- [x] Add an automated deployed-schema and RLS policy contract check.
+- [ ] Add authenticated two-account RLS integration tests.
+- [x] Add a stable development catalog with explicit local-ID-to-UUID mappings.
+- [ ] Separate development and production branches and seed catalogs.
 
 ### Data access
 
-- [ ] Define repository interfaces for profiles, libraries, tracking, Verdicts, shelves, and social data.
-- [ ] Add Neon Data API repository implementations.
-- [ ] Move direct `localStorage` access behind a local repository.
-- [ ] Hydrate authenticated application state from the database.
-- [ ] Add optimistic updates with rollback and conflict handling.
-- [ ] Add a migration path for existing local demo data.
+- [x] Define repository interfaces for profiles, catalogs, libraries, tracking, Verdicts, shelves, and social data.
+- [x] Add the first Neon Data API repository for libraries, viewing history, queue order, and title-level Verdicts.
+- [ ] Add Neon implementations for profiles, shelves, rankings, and social data.
+- [x] Move direct application-state `localStorage` access behind a local repository.
+- [x] Hydrate authenticated library state from the database when cloud data exists.
+- [x] Add serialized optimistic library updates with rollback and a visible error state.
+- [x] Add an explicit, idempotent browser-library import instead of silently copying data.
+- [ ] Complete production account, refresh, second-device, and isolation acceptance.
 
 ### Phase 1 exit gate
 
@@ -197,12 +203,12 @@ Every user-data type has an authorization policy, backup strategy, export path, 
 
 ## Immediate implementation sequence
 
-1. Generate complete database types and add live RLS policy tests.
-2. Define repository interfaces and move `localStorage` behind a local implementation.
-3. Seed a development media catalog with stable provider-to-UUID mappings.
-4. Implement authenticated library persistence: load, add, move to Up Next, refresh, and cross-device sync.
-5. Persist episode tracking, undo history, Verdicts, qualities, and rankings with optimistic rollback.
-6. Add an idempotent migration path for existing local demo data.
+1. **Implemented:** Generate complete database types and add a live deployed-schema/RLS policy contract check.
+2. **Implemented:** Define repository interfaces and move `localStorage` behind a local implementation.
+3. **Implemented:** Seed a development media catalog with stable local-ID-to-UUID mappings.
+4. **Acceptance next:** Copy the signed-in browser library to Neon, then verify load, add, Up Next, refresh, and second-device synchronization in production.
+5. **Acceptance next:** Verify episode tracking, undo history, Verdicts, qualities, and optimistic rollback against the production Data API.
+6. **Implemented:** Add an explicit and idempotent migration path for existing local demo data.
 7. Replace seeded media discovery with a trusted server-side metadata adapter.
 8. Complete real daily-use flows before expanding social features.
 

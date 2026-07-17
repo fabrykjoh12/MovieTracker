@@ -2508,6 +2508,38 @@ blockquote {
 .account-authenticated > .secondary-button {
   width: 100%;
 }
+
+.account-sync-panel {
+  width: 100%;
+  margin: 0.4rem 0 0.2rem;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  border-left: 2px solid var(--text-muted);
+  text-align: left;
+}
+
+.account-sync-panel.synced {
+  border-left-color: var(--good);
+}
+
+.account-sync-panel.error {
+  border-left-color: var(--accent);
+}
+
+.account-sync-panel strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--text);
+}
+
+.account-sync-panel p {
+  margin: 0 0 0.8rem;
+}
+
+.account-sync-panel .primary-button,
+.account-sync-panel .secondary-button {
+  width: 100%;
+}
 .account-text-button {
   width: 100%;
   min-height: 44px;

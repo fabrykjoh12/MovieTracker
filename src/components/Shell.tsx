@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import { useStore } from "../store";
 
 const navigation = [
   { to: "/", label: "Home", icon: Home },
@@ -24,6 +25,7 @@ const navigation = [
 
 export function Shell() {
   const { status, user } = useAuth();
+  const { librarySync } = useStore();
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     localStorage.getItem("movietracker:theme") === "light" ? "light" : "dark",
   );
@@ -87,7 +89,15 @@ export function Shell() {
               {status === "demo"
                 ? "Demo"
                 : status === "authenticated"
-                  ? "Synced"
+                  ? librarySync.status === "synced"
+                    ? "Synced"
+                    : librarySync.status === "saving"
+                      ? "Saving"
+                      : librarySync.status === "needs-import"
+                        ? "Set up"
+                        : librarySync.status === "error"
+                          ? "Offline"
+                          : "Connecting"
                   : "Account"}
             </span>
             <span className="avatar">

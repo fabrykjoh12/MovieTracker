@@ -6,6 +6,9 @@ import { MemoryRouter } from "react-router-dom";
 import { Account } from "./Account";
 
 const auth = vi.hoisted(() => ({
+  user: null as { id: string; email: string; name: string } | null,
+  status: "anonymous" as "anonymous" | "authenticated",
+  isConfigured: true,
   requestPasswordReset: vi.fn(),
   resetPassword: vi.fn(),
   signInWithPassword: vi.fn(),
@@ -14,10 +17,23 @@ const auth = vi.hoisted(() => ({
 
 vi.mock("../auth/AuthProvider", () => ({
   useAuth: () => ({
-    user: null,
-    status: "anonymous",
-    isConfigured: true,
     ...auth,
+  }),
+}));
+
+const store = vi.hoisted(() => ({
+  librarySync: { status: "browser", message: undefined } as {
+    status: "browser" | "needs-import";
+    message?: string;
+  },
+  startCloudSync: vi.fn(),
+  retryCloudSync: vi.fn(),
+}));
+
+vi.mock("../store", () => ({
+  useStore: () => ({
+    state: { userMedia: { severance: {}, arrival: {} } },
+    ...store,
   }),
 }));
 
@@ -36,6 +52,9 @@ describe("account password setup", () => {
     auth.resetPassword.mockResolvedValue({});
     auth.signInWithPassword.mockResolvedValue({});
     auth.signOut.mockResolvedValue({});
+    auth.user = null;
+    auth.status = "anonymous";
+    store.librarySync = { status: "browser", message: undefined };
     window.history.replaceState(null, "", "/#/account");
   });
 
@@ -91,5 +110,28 @@ describe("account password setup", () => {
     expect(
       screen.getByText("Password set. You can sign in now."),
     ).toBeInTheDocument();
+  });
+
+  it("requires an explicit action before copying a browser library", async () => {
+    auth.user = {
+      id: "user-1",
+      email: "viewer@example.com",
+      name: "Viewer",
+    };
+    auth.status = "authenticated";
+    store.librarySync = { status: "needs-import", message: undefined };
+    const user = userEvent.setup();
+    renderAccount();
+
+    expect(
+      screen.getByText("Finish setting up your cloud library"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Copy 2 browser titles/i)).toBeInTheDocument();
+    expect(store.startCloudSync).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("button", { name: "Copy library to Neon" }),
+    );
+    expect(store.startCloudSync).toHaveBeenCalledOnce();
   });
 });
