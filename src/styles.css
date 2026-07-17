@@ -2522,7 +2522,8 @@ blockquote {
   border-left-color: var(--good);
 }
 
-.account-sync-panel.error {
+.account-sync-panel.error,
+.account-sync-panel.import-error {
   border-left-color: var(--accent);
 }
 

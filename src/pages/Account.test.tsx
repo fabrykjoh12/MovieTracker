@@ -23,7 +23,7 @@ vi.mock("../auth/AuthProvider", () => ({
 
 const store = vi.hoisted(() => ({
   librarySync: { status: "browser", message: undefined } as {
-    status: "browser" | "needs-import";
+    status: "browser" | "needs-import" | "import-error";
     message?: string;
   },
   startCloudSync: vi.fn(),
@@ -133,5 +133,29 @@ describe("account password setup", () => {
       screen.getByRole("button", { name: "Copy library to Neon" }),
     );
     expect(store.startCloudSync).toHaveBeenCalledOnce();
+  });
+
+  it("retries an interrupted first copy instead of treating it as synced", async () => {
+    auth.user = {
+      id: "user-1",
+      email: "viewer@example.com",
+      name: "Viewer",
+    };
+    auth.status = "authenticated";
+    store.librarySync = {
+      status: "import-error",
+      message: "The first copy stopped.",
+    };
+    const user = userEvent.setup();
+    renderAccount();
+
+    expect(
+      screen.getByText("The library copy stopped early"),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Retry library copy" }),
+    );
+    expect(store.startCloudSync).toHaveBeenCalledOnce();
+    expect(store.retryCloudSync).not.toHaveBeenCalled();
   });
 });

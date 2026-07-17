@@ -196,6 +196,21 @@ export function Account() {
                     <strong>Saving your library…</strong>
                     <p>Keep this page open while the first copy finishes.</p>
                   </>
+                ) : librarySync.status === "import-error" ? (
+                  <>
+                    <strong>The library copy stopped early</strong>
+                    <p role="alert">
+                      {librarySync.message ??
+                        "The browser library was not fully copied."}
+                    </p>
+                    <button
+                      className="primary-button"
+                      type="button"
+                      onClick={() => void startCloudSync()}
+                    >
+                      Retry library copy
+                    </button>
+                  </>
                 ) : librarySync.status === "error" ? (
                   <>
                     <strong>Cloud sync needs attention</strong>

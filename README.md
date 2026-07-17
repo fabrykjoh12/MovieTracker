@@ -35,7 +35,7 @@ For GitHub Pages, add `VITE_NEON_AUTH_URL` and `VITE_NEON_DATA_API_URL` as Actio
 
 Public registration is intentionally absent from the app. Beta users should be provisioned through a trusted administrative flow, and sign-up must remain disabled in the Neon Auth configuration.
 
-When a signed-in account has no cloud library, MovieTracker does not copy browser data automatically. Open **Account & Data** and choose **Copy library to Neon**. The import is idempotent, and subsequent library, queue, tracking, undo, and title-level Verdict changes use the authenticated Data API with optimistic rollback.
+When a signed-in account has no initialized cloud library, MovieTracker does not copy browser data automatically. Open **Account & Data** and choose **Copy library to Neon**. The import is idempotent and records completion only after every row succeeds, so an interrupted copy can be retried safely. Subsequent library, queue, tracking, undo, and title-level Verdict changes use the authenticated Data API with optimistic rollback and stale-write rejection.
 
 ## Quality checks
 

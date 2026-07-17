@@ -66,6 +66,22 @@ try {
     );
   }
 
+  const syncMarker = await client.query(`
+    select exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'profiles'
+        and column_name = 'library_initialized_at'
+        and data_type = 'timestamp with time zone'
+    ) as present
+  `);
+  if (!syncMarker.rows[0]?.present) {
+    throw new Error(
+      "The durable profile library initialization marker is missing.",
+    );
+  }
+
   const policies = await client.query(`
     select policyname, cmd, qual, with_check
     from pg_policies
@@ -102,7 +118,7 @@ try {
   }
 
   console.log(
-    `Verified ${expectedTables.length} RLS-protected tables and ${policies.rowCount} policies; no anonymous table grants found.`,
+    `Verified ${expectedTables.length} RLS-protected tables, ${policies.rowCount} policies, and the library sync marker; no anonymous table grants found.`,
   );
 } finally {
   await client.end();

@@ -95,9 +95,11 @@ export function Shell() {
                       ? "Saving"
                       : librarySync.status === "needs-import"
                         ? "Set up"
-                        : librarySync.status === "error"
-                          ? "Offline"
-                          : "Connecting"
+                        : librarySync.status === "import-error"
+                          ? "Set up"
+                          : librarySync.status === "error"
+                            ? "Offline"
+                            : "Connecting"
                   : "Account"}
             </span>
             <span className="avatar">

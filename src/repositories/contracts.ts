@@ -25,6 +25,10 @@ export interface LibrarySnapshot {
   queue: string[];
 }
 
+export interface CloudLibrarySnapshot extends LibrarySnapshot {
+  initialized: boolean;
+}
+
 export interface ProfileRepository {
   getCurrent(): Promise<ProfileRecord>;
   update(profile: Partial<Omit<ProfileRecord, "id">>): Promise<ProfileRecord>;
@@ -43,7 +47,8 @@ export interface LibraryRepository {
 }
 
 export interface LibrarySyncRepository extends LibraryRepository {
-  import(snapshot: LibrarySnapshot): Promise<LibrarySnapshot>;
+  load(): Promise<CloudLibrarySnapshot>;
+  import(snapshot: LibrarySnapshot): Promise<CloudLibrarySnapshot>;
   persistChanges(previous: AppState, next: AppState): Promise<void>;
 }
 

@@ -21,7 +21,10 @@ import {
   undoLastTracking,
 } from "./domain";
 import { createLocalStateRepository } from "./repositories/localStateRepository";
-import { createNeonLibraryRepository } from "./repositories/neonLibraryRepository";
+import {
+  createNeonLibraryRepository,
+  LibraryConflictError,
+} from "./repositories/neonLibraryRepository";
 import type {
   LibrarySnapshot,
   LibrarySyncRepository,
@@ -228,7 +231,13 @@ export const reducer = (state: AppState, action: Action): AppState => {
 };
 
 export type LibrarySyncStatus =
-  "browser" | "connecting" | "needs-import" | "saving" | "synced" | "error";
+  | "browser"
+  | "connecting"
+  | "needs-import"
+  | "import-error"
+  | "saving"
+  | "synced"
+  | "error";
 
 interface LibrarySyncState {
   status: LibrarySyncStatus;
@@ -287,10 +296,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
       try {
         const snapshot = await repository.load();
         if (cloudRepositoryRef.current !== repository) return;
-        const hasCloudData =
-          Object.keys(snapshot.userMedia).length > 0 ||
-          snapshot.events.length > 0;
-        if (!hasCloudData) {
+        if (!snapshot.initialized) {
           setLibrarySync({ status: "needs-import" });
           return;
         }
@@ -388,7 +394,13 @@ export function StoreProvider({ children }: PropsWithChildren) {
         })
         .catch(async (error: unknown) => {
           if (cloudRepositoryRef.current !== repository) return;
-          if (stateRef.current === next) {
+          if (error instanceof LibraryConflictError) {
+            try {
+              hydrateLibrary(await repository.load());
+            } catch {
+              // Preserve the current state if the conflict refresh also fails.
+            }
+          } else if (stateRef.current === next) {
             replaceState(previous);
           } else {
             try {
@@ -424,7 +436,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
       setLibrarySync({ status: "synced" });
     } catch (error) {
       setLibrarySync({
-        status: "error",
+        status: "import-error",
         message:
           error instanceof Error
             ? error.message

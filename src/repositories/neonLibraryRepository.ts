@@ -1,11 +1,24 @@
 import type { getNeonClient } from "../lib/neon";
 import type { Json, Tables, TablesInsert } from "../lib/database.types";
 import type { AppState, UserMediaState, Verdict, WatchEvent } from "../types";
-import type { LibrarySnapshot, LibrarySyncRepository } from "./contracts";
+import type {
+  CloudLibrarySnapshot,
+  LibrarySnapshot,
+  LibrarySyncRepository,
+} from "./contracts";
 import { buildCatalogIdMaps, mapLibrarySnapshot } from "./mappers";
 
 type NeonClient = NonNullable<Awaited<ReturnType<typeof getNeonClient>>>;
 type MediaRow = Tables<"media">;
+
+export class LibraryConflictError extends Error {
+  constructor(mediaId: string) {
+    super(
+      `${mediaId} changed on another device. The latest cloud version was loaded.`,
+    );
+    this.name = "LibraryConflictError";
+  }
+}
 
 function resultError(error: unknown, action: string) {
   if (
@@ -17,6 +30,15 @@ function resultError(error: unknown, action: string) {
     return new Error(`${action}: ${error.message}`);
   }
   return new Error(`${action} failed.`);
+}
+
+function isUniqueViolation(error: unknown) {
+  return (
+    error !== null &&
+    typeof error === "object" &&
+    "code" in error &&
+    error.code === "23505"
+  );
 }
 
 function snapshot(state: AppState): LibrarySnapshot {
@@ -44,6 +66,8 @@ export function createNeonLibraryRepository(
   userId: string,
 ): LibrarySyncRepository {
   let catalogPromise: Promise<MediaRow[]> | null = null;
+  const stateVersions = new Map<string, string>();
+  const verdictVersions = new Map<string, string>();
 
   const catalog = async () => {
     catalogPromise ??= (async () => {
@@ -67,17 +91,7 @@ export function createNeonLibraryRepository(
 
   const saveVerdict = async (localMediaId: string, verdict: Verdict) => {
     const mediaId = await databaseMediaId(localMediaId);
-    const existing = await client
-      .from("verdicts")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("media_id", mediaId)
-      .is("season_id", null)
-      .is("episode_id", null)
-      .maybeSingle();
-    if (existing.error) {
-      throw resultError(existing.error, "Finding the existing Verdict");
-    }
+    const expectedVersion = verdictVersions.get(localMediaId);
     const values = {
       kind: verdict.kind,
       normalized: verdict.normalized,
@@ -86,26 +100,52 @@ export function createNeonLibraryRepository(
       personal_rank: verdict.rank ?? null,
       recorded_at: verdict.recordedAt,
     };
-    const result = existing.data
-      ? await client.from("verdicts").update(values).eq("id", existing.data.id)
-      : await client.from("verdicts").insert({
-          user_id: userId,
-          media_id: mediaId,
-          ...values,
-        });
-    if (result.error) throw resultError(result.error, "Saving the Verdict");
+    const result = expectedVersion
+      ? await client
+          .from("verdicts")
+          .update(values)
+          .eq("user_id", userId)
+          .eq("media_id", mediaId)
+          .is("season_id", null)
+          .is("episode_id", null)
+          .eq("updated_at", expectedVersion)
+          .select("updated_at")
+          .maybeSingle()
+      : await client
+          .from("verdicts")
+          .insert({
+            user_id: userId,
+            media_id: mediaId,
+            ...values,
+          })
+          .select("updated_at")
+          .single();
+    if (result.error) {
+      if (isUniqueViolation(result.error)) {
+        throw new LibraryConflictError(localMediaId);
+      }
+      throw resultError(result.error, "Saving the Verdict");
+    }
+    if (!result.data) throw new LibraryConflictError(localMediaId);
+    verdictVersions.set(localMediaId, result.data.updated_at);
   };
 
   const removeVerdict = async (localMediaId: string) => {
     const mediaId = await databaseMediaId(localMediaId);
+    const expectedVersion = verdictVersions.get(localMediaId);
+    if (!expectedVersion) return;
     const result = await client
       .from("verdicts")
       .delete()
       .eq("user_id", userId)
       .eq("media_id", mediaId)
       .is("season_id", null)
-      .is("episode_id", null);
+      .is("episode_id", null)
+      .eq("updated_at", expectedVersion)
+      .select("id");
     if (result.error) throw resultError(result.error, "Removing the Verdict");
+    if (!result.data?.length) throw new LibraryConflictError(localMediaId);
+    verdictVersions.delete(localMediaId);
   };
 
   const recordEvent = async (event: WatchEvent) => {
@@ -177,9 +217,14 @@ export function createNeonLibraryRepository(
   };
 
   const repository: LibrarySyncRepository = {
-    async load() {
-      const [mediaRows, states, verdicts, events] = await Promise.all([
+    async load(): Promise<CloudLibrarySnapshot> {
+      const [mediaRows, profile, states, verdicts, events] = await Promise.all([
         catalog(),
+        client
+          .from("profiles")
+          .select("library_initialized_at")
+          .eq("id", userId)
+          .single(),
         client.from("user_media_states").select("*").eq("user_id", userId),
         client.from("verdicts").select("*").eq("user_id", userId),
         client
@@ -188,6 +233,9 @@ export function createNeonLibraryRepository(
           .eq("user_id", userId)
           .order("watched_at", { ascending: true }),
       ]);
+      if (profile.error) {
+        throw resultError(profile.error, "Loading the profile sync state");
+      }
       if (states.error) {
         throw resultError(states.error, "Loading the library");
       }
@@ -197,16 +245,33 @@ export function createNeonLibraryRepository(
       if (events.error) {
         throw resultError(events.error, "Loading viewing history");
       }
-      return mapLibrarySnapshot(
-        mediaRows,
-        states.data ?? [],
-        verdicts.data ?? [],
-        events.data ?? [],
-      );
+      const { databaseToLocal } = buildCatalogIdMaps(mediaRows);
+      stateVersions.clear();
+      verdictVersions.clear();
+      states.data?.forEach((row) => {
+        const localId = databaseToLocal.get(row.media_id);
+        if (localId) stateVersions.set(localId, row.updated_at);
+      });
+      verdicts.data
+        ?.filter((row) => row.season_id === null && row.episode_id === null)
+        .forEach((row) => {
+          const localId = databaseToLocal.get(row.media_id);
+          if (localId) verdictVersions.set(localId, row.updated_at);
+        });
+      return {
+        ...mapLibrarySnapshot(
+          mediaRows,
+          states.data ?? [],
+          verdicts.data ?? [],
+          events.data ?? [],
+        ),
+        initialized: profile.data.library_initialized_at !== null,
+      };
     },
 
     async saveState(state, queuePosition) {
       const mediaId = await databaseMediaId(state.mediaId);
+      const expectedVersion = stateVersions.get(state.mediaId);
       const values: TablesInsert<"user_media_states"> = {
         user_id: userId,
         media_id: mediaId,
@@ -216,24 +281,46 @@ export function createNeonLibraryRepository(
         intent: intentJson(state, queuePosition),
         saved_at: state.savedAt,
       };
-      const result = await client
-        .from("user_media_states")
-        .upsert(values, { onConflict: "user_id,media_id" });
+      const result = expectedVersion
+        ? await client
+            .from("user_media_states")
+            .update(values)
+            .eq("user_id", userId)
+            .eq("media_id", mediaId)
+            .eq("updated_at", expectedVersion)
+            .select("updated_at")
+            .maybeSingle()
+        : await client
+            .from("user_media_states")
+            .insert(values)
+            .select("updated_at")
+            .single();
       if (result.error) {
+        if (isUniqueViolation(result.error)) {
+          throw new LibraryConflictError(state.mediaId);
+        }
         throw resultError(result.error, "Saving the library state");
       }
+      if (!result.data) throw new LibraryConflictError(state.mediaId);
+      stateVersions.set(state.mediaId, result.data.updated_at);
     },
 
     async removeState(localMediaId) {
       const mediaId = await databaseMediaId(localMediaId);
+      const expectedVersion = stateVersions.get(localMediaId);
+      if (!expectedVersion) return;
       const result = await client
         .from("user_media_states")
         .delete()
         .eq("user_id", userId)
-        .eq("media_id", mediaId);
+        .eq("media_id", mediaId)
+        .eq("updated_at", expectedVersion)
+        .select("id");
       if (result.error) {
         throw resultError(result.error, "Removing the library state");
       }
+      if (!result.data?.length) throw new LibraryConflictError(localMediaId);
+      stateVersions.delete(localMediaId);
     },
 
     async reorderQueue(mediaIds) {
@@ -259,10 +346,15 @@ export function createNeonLibraryRepository(
             .from("user_media_states")
             .update({ intent: { ...currentIntent, queuePosition: index } })
             .eq("user_id", userId)
-            .eq("media_id", mediaId);
+            .eq("media_id", mediaId)
+            .eq("updated_at", stateVersions.get(localMediaId) ?? "")
+            .select("updated_at")
+            .maybeSingle();
           if (result.error) {
             throw resultError(result.error, "Reordering the queue");
           }
+          if (!result.data) throw new LibraryConflictError(localMediaId);
+          stateVersions.set(localMediaId, result.data.updated_at);
         }),
       );
     },
@@ -274,6 +366,13 @@ export function createNeonLibraryRepository(
         if (state.verdict) await saveVerdict(state.mediaId, state.verdict);
       }
       for (const event of library.events) await recordEvent(event);
+      const completed = await client
+        .from("profiles")
+        .update({ library_initialized_at: new Date().toISOString() })
+        .eq("id", userId);
+      if (completed.error) {
+        throw resultError(completed.error, "Completing cloud library setup");
+      }
       return repository.load();
     },
 
@@ -293,7 +392,8 @@ export function createNeonLibraryRepository(
         }
         if (!after) continue;
         const position = nextSnapshot.queue.indexOf(mediaId);
-        if (!same(before, after) || !same(previous.queue, next.queue)) {
+        const previousPosition = previousSnapshot.queue.indexOf(mediaId);
+        if (!same(before, after) || previousPosition !== position) {
           await repository.saveState(
             after,
             position < 0 ? undefined : position,

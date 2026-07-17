@@ -63,7 +63,7 @@ GitHub Actions reads the two public `VITE_` values from Actions variables. Repos
 
 ## Backend status
 
-Neon is configured on the `production` branch. Both migrations in `neon/migrations` have been applied and recorded by the checksum-aware runner in `scripts/migrate.mjs`. The second migration adds a stable 14-title development catalog with explicit `metadata.localId` mappings.
+Neon is configured on the `production` branch. All three migrations in `neon/migrations` have been applied and recorded by the checksum-aware runner in `scripts/migrate.mjs`. The second migration adds a stable 14-title development catalog with explicit `metadata.localId` mappings. The third adds `profiles.library_initialized_at`, a durable marker that distinguishes a completed first sync from a partial import.
 
 The live database audit completed with:
 
@@ -96,9 +96,9 @@ Important limitation: the app does not expose public registration, but the curre
 
 `src/store.tsx` remains the application state source, but persistence is now behind repositories. Demo and signed-out sessions use `src/repositories/localStateRepository.ts`. Signed-in sessions use `src/repositories/neonLibraryRepository.ts` after Neon library data exists.
 
-For an empty cloud library, the app deliberately leaves the browser library untouched and shows **Copy library to Neon** on the Account page. That import uses stable catalog mappings and client event IDs so it is safe to retry. It preserves coarse historical watch dates in private intent metadata and does not silently copy data merely because someone signs in.
+For an uninitialized cloud library, the app deliberately leaves the browser library untouched and shows **Copy library to Neon** on the Account page. That import uses stable catalog mappings and client event IDs so it is safe to retry. The durable profile marker is written only after every state, Verdict, and watch event succeeds; an interrupted import stays in setup mode and offers **Retry library copy**. It preserves coarse historical watch dates in private intent metadata and does not silently copy data merely because someone signs in.
 
-After first sync, library state, queue order, exact numeric series progress, watch events, undo removal, title-level Verdicts, qualities, tags, and rankings are sent through the authenticated Neon Data API. Mutations apply optimistically in a serialized queue; a failed latest mutation rolls back, while ambiguous concurrent failure triggers a cloud reload and visible error state. Cloud-owned library data is not written into the generic signed-out demo cache.
+After first sync, library state, queue order, exact numeric series progress, watch events, undo removal, title-level Verdicts, qualities, tags, and rankings are sent through the authenticated Neon Data API. Mutations apply optimistically in a serialized queue. Updates and deletes include the last observed `updated_at`, so a stale device cannot overwrite a newer row; conflicts reload the latest cloud state and show a visible error. Other failures roll back the latest optimistic mutation, while ambiguous concurrent failure triggers a cloud reload. Cloud-owned library data is not written into the generic signed-out demo cache.
 
 Repository and mapping unit tests exist, and `npm run db:verify` checks the deployed table/RLS contract. The two-account runtime isolation test still needs test credentials or a second provisioned beta account.
 
@@ -135,6 +135,7 @@ Add unit tests for mapping and repository behavior plus live integration tests f
 - `src/pages/Account.test.tsx`: password flow interactions
 - `neon/migrations/202607170001_initial_beta_schema.sql`: production schema and policies
 - `neon/migrations/202607170002_seed_development_catalog.sql`: stable beta catalog mapping
+- `neon/migrations/202607170003_library_sync_foundation.sql`: durable first-sync marker
 - `scripts/migrate.mjs`: transactional checksum-aware migration runner
 - `scripts/verify-database.mjs`: live schema and RLS contract verification
 - `.github/workflows/deploy-pages.yml`: validation and Pages deployment
@@ -160,7 +161,7 @@ The last full local validation completed successfully with:
 - Prettier
 - ESLint
 - TypeScript type checking
-- 28 Vitest tests across five files
+- 31 Vitest tests across six files
 - Vite production build
 - `npm audit --audit-level=moderate` with zero vulnerabilities
 - Repeat migration returning `Already applied`

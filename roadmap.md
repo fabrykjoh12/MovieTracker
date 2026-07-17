@@ -16,10 +16,10 @@ Production checkpoint on 2026-07-17:
 - Neon Auth sign-in, sign-out, session restoration, and password setup/reset work locally and are compiled into the production deployment.
 - The initial Neon migration is applied: 19 public tables, RLS on all 19, and 41 policies.
 - The complete schema types were generated from Neon, and a live schema contract verifies all RLS-enabled tables, owner policies, and anonymous grants.
-- A stable 14-title development catalog is applied through a second checksum-protected migration.
+- A stable 14-title development catalog and durable first-sync completion marker are applied through checksum-protected migrations.
 - The existing Auth user was backfilled into `public.profiles`.
 - GitHub Actions validates required Neon variables and refuses to publish an unconfigured demo build.
-- Repository contracts, database mappers, local persistence, Neon library persistence, explicit first sync, and optimistic rollback are implemented.
+- Repository contracts, database mappers, local persistence, Neon library persistence, explicit retry-safe first sync, optimistic rollback, and stale-write rejection are implemented.
 
 The following areas are demonstrations rather than production integrations:
 
