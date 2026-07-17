@@ -9,9 +9,14 @@ interface CachedMediaRow {
   metadata_expires_at: string | null;
 }
 
+interface ExistingMediaRow {
+  id: string;
+  metadata: unknown;
+}
+
 interface StoredMetadata {
   localId: string;
-  catalog: "tmdb";
+  catalog: "development" | "tmdb";
   domain: Media;
 }
 
@@ -40,6 +45,25 @@ function storedMedia(metadata: unknown) {
   return isMedia(domain) ? domain : undefined;
 }
 
+export function preserveCatalogIdentity(media: Media, metadata: unknown) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return { media, catalog: "tmdb" as const };
+  }
+  const stored = metadata as Partial<StoredMetadata>;
+  const localId =
+    typeof stored.localId === "string" && stored.localId.trim()
+      ? stored.localId
+      : media.id;
+  const catalog =
+    stored.catalog === "development"
+      ? ("development" as const)
+      : ("tmdb" as const);
+  return {
+    media: localId === media.id ? media : { ...media, id: localId },
+    catalog,
+  };
+}
+
 export function createCatalogDatabase(connectionString: string) {
   const sql = neon(connectionString);
 
@@ -51,10 +75,19 @@ export function createCatalogDatabase(connectionString: string) {
     ) {
       const format = mediaType === "tv" ? "series" : "movie";
       const rows = await sql`
-        select id, metadata, metadata_expires_at
+        select media.id, media.metadata, media.metadata_expires_at
         from public.media
-        where format = ${format}::public.media_format
-          and tmdb_id = ${providerId}
+        left join public.media_provider_ids provider_id
+          on provider_id.media_id = media.id
+         and provider_id.provider = 'tmdb'
+         and provider_id.provider_media_type = ${mediaType}
+         and provider_id.provider_id = ${String(providerId)}
+        where provider_id.media_id is not null
+           or (
+             media.format = ${format}::public.media_format
+             and media.tmdb_id = ${providerId}
+           )
+        order by (provider_id.media_id is not null) desc
         limit 1
       `;
       const row = rows[0] as CachedMediaRow | undefined;
@@ -73,15 +106,51 @@ export function createCatalogDatabase(connectionString: string) {
       providerId: number,
       now = new Date(),
     ) {
-      const media = entry.media;
+      const existingRows = await sql`
+        select media.id, media.metadata
+        from public.media
+        left join public.media_provider_ids provider_id
+          on provider_id.media_id = media.id
+         and provider_id.provider = 'tmdb'
+         and provider_id.provider_media_type = ${mediaType}
+         and provider_id.provider_id = ${String(providerId)}
+        where provider_id.media_id is not null
+           or (
+             media.format = ${entry.media.format}::public.media_format
+             and media.tmdb_id = ${providerId}
+           )
+        order by (provider_id.media_id is not null) desc
+        limit 1
+      `;
+      const existing = existingRows[0] as ExistingMediaRow | undefined;
+      const identity = preserveCatalogIdentity(entry.media, existing?.metadata);
+      const media = identity.media;
       const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       const metadata: StoredMetadata = {
         localId: media.id,
-        catalog: "tmdb",
+        catalog: identity.catalog,
         domain: media,
       };
       const metadataJson = JSON.stringify(metadata);
-      const rows = await sql`
+      const rows = existing
+        ? await sql`
+        update public.media
+        set
+          format = ${media.format}::public.media_format,
+          tmdb_id = ${providerId},
+          title = ${media.title},
+          original_title = ${entry.detail.original_title ?? entry.detail.original_name ?? null},
+          release_year = ${media.year || null},
+          runtime_minutes = ${media.runtime || null},
+          poster_path = ${entry.posterPath ?? null},
+          backdrop_path = ${entry.backdropPath ?? null},
+          metadata = ${metadataJson}::jsonb,
+          metadata_updated_at = ${now.toISOString()}::timestamptz,
+          metadata_expires_at = ${expiresAt.toISOString()}::timestamptz
+        where id = ${existing.id}::uuid
+        returning id
+      `
+        : await sql`
         insert into public.media (
           format,
           tmdb_id,

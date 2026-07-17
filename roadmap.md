@@ -14,7 +14,7 @@ Production checkpoint on 2026-07-17:
 
 - GitHub Pages is deployed at `https://fabrykjoh12.github.io/MovieTracker/`.
 - Neon Auth sign-in, sign-out, session restoration, and password setup/reset work locally and are compiled into the production deployment.
-- Four Neon migrations are applied: 21 public tables, RLS on all 21, 41 policies, 14 curated provider mappings, and no browser grants on the provider caches.
+- Five Neon migrations are applied: 21 public tables, RLS on all 21, 41 policies, 14 curated provider mappings, and no browser grants on the provider caches.
 - The complete schema types were generated from Neon, and a live schema contract verifies all RLS-enabled tables, owner policies, and anonymous grants.
 - A stable 14-title development catalog and durable first-sync completion marker are applied through checksum-protected migrations.
 - The existing Auth user was backfilled into `public.profiles`.
@@ -22,13 +22,12 @@ Production checkpoint on 2026-07-17:
 - Repository contracts, database mappers, local persistence, Neon library persistence, explicit retry-safe first sync, optimistic rollback, and stale-write rejection are implemented.
 - The first production account completed cloud initialization: 12 mapped library rows, 6 distinct watch events, 5 Verdicts, and 4 exact-progress rows were verified with no duplicate client event IDs.
 - A secure build-time TMDB adapter enriches all 14 curated titles with real posters, backdrops, synopsis, runtime, year, and genres while retaining an explicit local fallback. Production workflow run `29600061181` synced all 14 titles and deployed 28 unique TMDB poster/backdrop URLs; sampled live images returned HTTP 200.
-- A rate-limited Cloudflare catalog Worker, expiring Neon provider cache, dynamic catalog hydration, and accessible Discover search/import flow are implemented and tested. Cloudflare authentication and production endpoint configuration remain before live search acceptance.
+- The rate-limited catalog Worker is live at `https://movie-tracker-catalog.fabrykjoh12.workers.dev`, with only `TMDB_READ_ACCESS_TOKEN` and `DATABASE_URL` stored as Cloudflare secrets. Live acceptance verified real TMDB search and artwork, first import into Neon, edge-cache reuse, and Neon-cache reuse.
 
 The following areas are demonstrations rather than production integrations:
 
 - Profile content beyond the authenticated identity
 - Cross-device persistence has not completed its two-device production acceptance test.
-- Arbitrary-title search is not live until the catalog Worker is deployed and `VITE_CATALOG_API_URL` is configured.
 - Streaming availability
 - Friend relationships and activity
 - Watch Together synchronization
@@ -218,8 +217,8 @@ Every user-data type has an authorization policy, backup strategy, export path, 
 5. **Acceptance next:** Verify episode tracking, undo history, Verdicts, qualities, and optimistic rollback against the production Data API.
 6. **Implemented:** Add an explicit and idempotent migration path for existing local demo data.
 7. **Implemented:** Activate and accept the secure curated-catalog TMDB adapter in production with 14 real posters, 14 real backdrops, and conditional attribution.
-8. **Implemented, deployment pending:** Add the trusted search Worker, provider ID mappings, metadata cache, dynamic catalog hydration, and Discover import flow.
-9. **Next acceptance:** Deploy the Worker, configure `VITE_CATALOG_API_URL`, and add a real uncurated movie and series from production.
+8. **Implemented and API-accepted:** Add and deploy the trusted search Worker, provider ID mappings, metadata cache, dynamic catalog hydration, and Discover import flow.
+9. **Next acceptance:** Add a real uncurated movie and series through the production Discover interface after the Pages build receives `VITE_CATALOG_API_URL`.
 10. Complete real daily-use flows before expanding social features.
 
 ## Next acceptance test

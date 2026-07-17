@@ -89,6 +89,8 @@ For production:
 
 The Worker configuration is the source of truth for allowed origins and required secrets. Never place either private credential in `VITE_CATALOG_API_URL` or any other browser variable. See the official [Cloudflare Worker secrets](https://developers.cloudflare.com/workers/configuration/secrets/), [rate limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/), and [Neon serverless driver](https://neon.com/docs/serverless/serverless-driver) documentation.
 
+The current production Worker is `https://movie-tracker-catalog.fabrykjoh12.workers.dev`. Its live acceptance verifies real TMDB results and artwork plus edge and Neon metadata-cache reuse. The public URL is configured through the repository-level `VITE_CATALOG_API_URL` Actions variable; private TMDB and database credentials remain Cloudflare secrets.
+
 ## Quality checks
 
 ```bash
