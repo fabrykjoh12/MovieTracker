@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -14,26 +13,28 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { PosterCard } from "../components/PosterCard";
-import {
-  getCatalogSearchClient,
-  isCatalogSearchConfigured,
-} from "../catalog/search";
-import type { MediaSearchResult } from "../catalog/search";
 import { recommendationReason } from "../domain";
+import {
+  catalogResultKey,
+  catalogResultLocalId,
+  useCatalogSearch,
+} from "../hooks/useCatalogSearch";
 import { useStore } from "../store";
-import type { MediaFormat } from "../types";
-
-type SearchState = "idle" | "searching" | "ready" | "error";
 
 export function Discover() {
-  const { state, dispatch, catalog, registerCatalogItem } = useStore();
-  const [query, setQuery] = useState("");
-  const [format, setFormat] = useState<"any" | MediaFormat>("any");
-  const [searchState, setSearchState] = useState<SearchState>("idle");
-  const [results, setResults] = useState<MediaSearchResult[]>([]);
-  const [searchMessage, setSearchMessage] = useState("");
-  const [importingId, setImportingId] = useState<number>();
-  const client = useMemo(() => getCatalogSearchClient(), []);
+  const { state, dispatch, catalog } = useStore();
+  const {
+    configured,
+    query,
+    setQuery,
+    format,
+    setFormat,
+    searchState,
+    results,
+    searchMessage,
+    busyKey,
+    addToLibrary,
+  } = useCatalogSearch();
   const featured = catalog.find((item) => item.id === "perfect-days")!;
   const collection = catalog.filter((item) =>
     ["aftersun", "portrait", "memories-of-murder", "past-lives"].includes(
@@ -43,67 +44,6 @@ export function Discover() {
   const recommendations = catalog.filter((item) =>
     ["decision-to-leave", "columbus", "perfect-days"].includes(item.id),
   );
-
-  useEffect(() => {
-    const normalized = query.trim();
-    if (!client || normalized.length < 2) {
-      return;
-    }
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setSearchState("searching");
-      setSearchMessage("");
-      client
-        .search(normalized, format, controller.signal)
-        .then((response) => {
-          setResults(response.results);
-          setSearchState("ready");
-          setSearchMessage(
-            response.results.length
-              ? `${response.results.length} titles found.`
-              : `No titles found for “${normalized}”.`,
-          );
-        })
-        .catch((error: unknown) => {
-          if (error instanceof DOMException && error.name === "AbortError") {
-            return;
-          }
-          setResults([]);
-          setSearchState("error");
-          setSearchMessage(
-            error instanceof Error
-              ? error.message
-              : "Catalog search is temporarily unavailable.",
-          );
-        });
-    }, 350);
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timer);
-    };
-  }, [client, format, query]);
-
-  const addSearchResult = async (result: MediaSearchResult) => {
-    if (!client) return;
-    setImportingId(result.providerId);
-    setSearchMessage(`Preparing ${result.title}…`);
-    try {
-      const item = await client.importTitle(result);
-      await registerCatalogItem(item);
-      dispatch({ type: "add", mediaId: item.id });
-      setSearchMessage(`${item.title} was added to your library.`);
-    } catch (error) {
-      setSearchMessage(
-        error instanceof Error
-          ? error.message
-          : "This title could not be added right now.",
-      );
-    } finally {
-      setImportingId(undefined);
-    }
-  };
 
   return (
     <div className="page discover-page">
@@ -130,7 +70,7 @@ export function Discover() {
             bookmark.
           </p>
         </div>
-        {isCatalogSearchConfigured ? (
+        {configured ? (
           <>
             <div className="catalog-search-bar">
               <label>
@@ -139,15 +79,7 @@ export function Discover() {
                 <input
                   type="search"
                   value={query}
-                  onChange={(event) => {
-                    const nextQuery = event.target.value;
-                    setQuery(nextQuery);
-                    if (nextQuery.trim().length < 2) {
-                      setResults([]);
-                      setSearchState("idle");
-                      setSearchMessage("");
-                    }
-                  }}
+                  onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search by title"
                   autoComplete="off"
                 />
@@ -188,12 +120,11 @@ export function Discover() {
             {results.length > 0 && (
               <div className="catalog-results">
                 {results.map((result) => {
-                  const localId = `tmdb-${result.mediaType}-${result.providerId}`;
+                  const localId = catalogResultLocalId(result);
                   const saved = Boolean(state.userMedia[localId]);
-                  const imported = catalog.some((item) => item.id === localId);
-                  const busy = importingId === result.providerId;
+                  const busy = busyKey === catalogResultKey(result);
                   return (
-                    <article key={`${result.mediaType}-${result.providerId}`}>
+                    <article key={catalogResultKey(result)}>
                       {result.poster ? (
                         <img
                           src={result.poster}
@@ -225,20 +156,20 @@ export function Discover() {
                         )}
                         <p>{result.synopsis}</p>
                       </div>
-                      {imported ? (
+                      {saved ? (
                         <Link
                           className="catalog-result-action"
                           to={`/title/${localId}`}
                         >
                           <Check size={16} />
-                          {saved ? "In library" : "View title"}
+                          In library
                         </Link>
                       ) : (
                         <button
                           className="catalog-result-action"
                           type="button"
-                          disabled={busy || importingId !== undefined}
-                          onClick={() => void addSearchResult(result)}
+                          disabled={busy || busyKey !== undefined}
+                          onClick={() => void addToLibrary(result)}
                         >
                           {busy ? (
                             <LoaderCircle className="spin" size={16} />

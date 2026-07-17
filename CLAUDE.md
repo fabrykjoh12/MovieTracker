@@ -21,7 +21,7 @@ Read `README.md` and `roadmap.md` before changing architecture or scope.
 - The workflow also fails before dependency installation when `TMDB_READ_ACCESS_TOKEN` is missing, preventing production from silently returning to demonstration artwork.
 - A successful production deployment was verified on 2026-07-17. Workflow run `29544020043` completed successfully, the public page returned HTTP 200, and the live bundle contained both the Neon Auth configuration and password flow.
 - Curated TMDB artwork was accepted in production in workflow run `29600061181`: all 14 mappings synced, validation and deployment passed, the live bundle contained 28 unique poster/backdrop URLs plus attribution, and sampled TMDB images returned HTTP 200.
-- Whole-catalog search is live at `https://movie-tracker-catalog.fabrykjoh12.workers.dev`. The Worker keeps TMDB and Neon credentials encrypted, and live acceptance verified TMDB search, TMDB artwork, Neon import, edge-cache reuse, and Neon-cache reuse.
+- Whole-catalog search is live at `https://movie-tracker-catalog.fabrykjoh12.workers.dev`. Users can open it from the global header control or `/`, filter movies and series, add a result directly to their library, and open its hydrated detail page. The Worker keeps TMDB and Neon credentials encrypted, and live acceptance verified TMDB search, TMDB artwork, Neon import, edge-cache reuse, and Neon-cache reuse.
 
 ## Stack
 
@@ -123,10 +123,9 @@ The deliberate queue is independent from library status: positioned planned and 
 
 Complete the remaining production browser smoke tests, then expand persisted personal data:
 
-1. Verify a real uncurated movie and series through the production Discover interface.
-2. Confirm the accepted queue, progress, and Verdict flow in a physical second-device browser.
-3. Add Neon persistence for editable profiles and custom shelves.
-4. Add export and deletion controls before inviting more beta users.
+1. Confirm global header search plus the accepted queue, progress, and Verdict flow in a physical second-device browser.
+2. Add Neon persistence for editable profiles and custom shelves.
+3. Add export and deletion controls before inviting more beta users.
 
 Add unit tests for mapping and repository behavior plus live integration tests for RLS. Keep provider metadata writes on a trusted server boundary; the browser must not receive privileged database credentials.
 
@@ -139,6 +138,8 @@ Add unit tests for mapping and repository behavior plus live integration tests f
 - `src/data.ts`: realistic demo catalog and activity
 - `src/catalog/tmdb.ts`: provider metadata contract and safe catalog enrichment
 - `src/catalog/search.ts`: browser-safe catalog API client and response validation
+- `src/hooks/useCatalogSearch.ts`: shared debounced search and direct-to-library import state
+- `src/components/GlobalSearchDialog.tsx`: accessible global search dialog and keyboard entry point
 - `src/generated/tmdbCatalog.ts`: generated browser-safe TMDB metadata or empty fallback
 - `catalog/tmdb-seeds.json`: stable local-title-to-TMDB mapping
 - `src/auth/AuthProvider.tsx`: Neon Auth session and password actions

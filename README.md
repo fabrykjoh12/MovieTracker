@@ -66,7 +66,7 @@ The source mapping lives in `catalog/tmdb-seeds.json`; generated browser-safe me
 
 ## Whole-catalog search
 
-Movie and series search is implemented through a Cloudflare Worker in `worker/`. The Worker keeps `TMDB_READ_ACCESS_TOKEN` and `DATABASE_URL` encrypted outside the browser, applies separate search/import rate limits, caches searches at the edge, stores normalized titles in `public.media`, and keeps raw provider responses in browser-inaccessible Neon cache tables.
+Movie and series search is available from the global header search (`/`) and the Discover page through a Cloudflare Worker in `worker/`. Results can be added directly to the current user's library. The Worker keeps `TMDB_READ_ACCESS_TOKEN` and `DATABASE_URL` encrypted outside the browser, applies separate search/import rate limits, caches searches at the edge, stores normalized titles in `public.media`, and keeps raw provider responses in browser-inaccessible Neon cache tables.
 
 The fourth migration must be applied before deploying the Worker:
 
@@ -87,7 +87,7 @@ For production:
 2. Create a GitHub environment named `catalog-worker` with `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `TMDB_READ_ACCESS_TOKEN`, and `DATABASE_URL` as secrets.
 3. Run the **Deploy catalog Worker** workflow and copy its `workers.dev` URL.
 4. Add that URL as the public GitHub Actions variable `VITE_CATALOG_API_URL`.
-5. Re-run the Pages deployment. Discover will expose real search only when this public endpoint is configured.
+5. Re-run the Pages deployment. The header and Discover page expose real search only when this public endpoint is configured.
 
 The Worker configuration is the source of truth for allowed origins and required secrets. Never place either private credential in `VITE_CATALOG_API_URL` or any other browser variable. See the official [Cloudflare Worker secrets](https://developers.cloudflare.com/workers/configuration/secrets/), [rate limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/), and [Neon serverless driver](https://neon.com/docs/serverless/serverless-driver) documentation.
 

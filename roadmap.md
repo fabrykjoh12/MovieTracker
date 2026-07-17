@@ -22,7 +22,7 @@ Production checkpoint on 2026-07-17:
 - Repository contracts, database mappers, local persistence, Neon library persistence, explicit retry-safe first sync, optimistic rollback, and stale-write rejection are implemented.
 - The first production account completed cloud initialization: 12 mapped library rows, 6 distinct watch events, 5 Verdicts, and 4 exact-progress rows were verified with no duplicate client event IDs.
 - A secure build-time TMDB adapter enriches all 14 curated titles with real posters, backdrops, synopsis, runtime, year, and genres while retaining an explicit local fallback. Production workflow run `29600061181` synced all 14 titles and deployed 28 unique TMDB poster/backdrop URLs; sampled live images returned HTTP 200.
-- The rate-limited catalog Worker is live at `https://movie-tracker-catalog.fabrykjoh12.workers.dev`, with only `TMDB_READ_ACCESS_TOKEN` and `DATABASE_URL` stored as Cloudflare secrets. Live acceptance verified real TMDB search and artwork, first import into Neon, edge-cache reuse, and Neon-cache reuse.
+- The rate-limited catalog Worker is live at `https://movie-tracker-catalog.fabrykjoh12.workers.dev`, with only `TMDB_READ_ACCESS_TOKEN` and `DATABASE_URL` stored as Cloudflare secrets. Live acceptance verified real TMDB search and artwork, first import into Neon, edge-cache reuse, and Neon-cache reuse. Search is available globally from the header and `/`, with direct library adds.
 
 The following areas are demonstrations rather than production integrations:
 
@@ -99,7 +99,7 @@ Two invited accounts can sign in on multiple devices. Each account sees only its
 - [x] Add provider-failure and incomplete-artwork fallbacks plus conditional TMDB attribution.
 - [x] Add a rate-limited server-side metadata proxy so provider credentials never reach the browser.
 - [x] Add provider ID mapping and browser-inaccessible metadata cache tables.
-- [x] Implement movie and series search with normalized library import.
+- [x] Implement global movie and series search with normalized direct-to-library import.
 - [ ] Add direct season, episode, person, and creator search.
 - [x] Replace curated-catalog demo posters and backdrops with provider artwork.
 - [x] Add Norwegian streaming-provider availability for imported titles.
@@ -220,7 +220,8 @@ Every user-data type has an authorization policy, backup strategy, export path, 
 7. **Implemented:** Activate and accept the secure curated-catalog TMDB adapter in production with 14 real posters, 14 real backdrops, and conditional attribution.
 8. **Implemented and API-accepted:** Add and deploy the trusted search Worker, provider ID mappings, metadata cache, dynamic catalog hydration, and Discover import flow.
 9. **Accepted:** Add real uncurated movies and series through the production Discover interface backed by the deployed catalog Worker.
-10. Complete real daily-use flows before expanding social features.
+10. **Implemented:** Make catalog search globally accessible from the header and `/`, with direct library adds and detail navigation.
+11. Complete real daily-use flows before expanding social features.
 
 ## Next acceptance test
 

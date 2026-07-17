@@ -14,6 +14,7 @@ import {
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { useStore } from "../store";
+import { GlobalSearchDialog } from "./GlobalSearchDialog";
 
 const navigation = [
   { to: "/", label: "Home", icon: Home },
@@ -23,6 +24,16 @@ const navigation = [
   { to: "/profile", label: "Profile", icon: UserRound },
 ];
 
+function isEditableTarget(target: EventTarget | null) {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT")
+  );
+}
+
 export function Shell() {
   const { status, user } = useAuth();
   const { librarySync } = useStore();
@@ -30,11 +41,32 @@ export function Shell() {
     localStorage.getItem("movietracker:theme") === "light" ? "light" : "dark",
   );
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("movietracker:theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    const openSearch = (event: KeyboardEvent) => {
+      if (
+        event.key !== "/" ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        isEditableTarget(event.target) ||
+        document.querySelector("dialog[open]")
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setSearchOpen(true);
+    };
+    window.addEventListener("keydown", openSearch);
+    return () => window.removeEventListener("keydown", openSearch);
+  }, []);
 
   return (
     <div className="app-shell">
@@ -57,6 +89,10 @@ export function Shell() {
             className="icon-button search-button"
             type="button"
             aria-label="Search MovieTracker"
+            aria-haspopup="dialog"
+            aria-expanded={searchOpen}
+            aria-controls="global-search-dialog"
+            onClick={() => setSearchOpen(true)}
           >
             <Search size={19} />
             <span>Search</span>
@@ -108,6 +144,11 @@ export function Shell() {
           </NavLink>
         </div>
       </header>
+
+      <GlobalSearchDialog
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+      />
 
       <aside
         className={`sidebar ${menuOpen ? "is-open" : ""}`}
