@@ -102,6 +102,7 @@ export interface WatchEvent {
   season?: number;
   episode?: number;
   previousState?: UserMediaState;
+  previousQueueIndex?: number;
 }
 
 export interface Shelf {

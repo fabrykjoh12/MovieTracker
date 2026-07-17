@@ -102,6 +102,10 @@ After first sync, library state, queue order, exact numeric series progress, wat
 
 Repository and mapping unit tests exist, and `npm run db:verify` checks the deployed table/RLS contract. The two-account runtime isolation test still needs test credentials or a second provisioned beta account.
 
+The first production account completed initialization after the third migration. The read-only database audit found 12 mapped library states, 6 distinct watch events, 5 valid Verdicts, 4 exact-progress rows, and zero duplicate client event IDs. The imported account also exercised new movie and episode tracking after setup. Refresh/second-device UI acceptance and a second-account isolation test remain open.
+
+The deliberate queue is independent from library status: positioned planned and watching titles are valid queue members. Hydration restores every positioned non-final title and excludes completed, dropped, and archived titles. Completing a queued movie removes it immediately; undo restores its exact prior position, with a backward-compatible append fallback for older events.
+
 ## Next vertical slice
 
 Complete production acceptance for the implemented cross-device library flow before expanding metadata or social features:

@@ -149,10 +149,22 @@ export const undoLastTracking = (state: AppState): AppState => {
   if (lastIndex < 0) return state;
   const event = state.events[lastIndex];
   if (!event?.previousState) return state;
+  const shouldRestoreQueue =
+    event.previousQueueIndex !== undefined ||
+    event.previousState.status === "up-next";
+  const queue = state.queue.filter((mediaId) => mediaId !== event.mediaId);
+  if (shouldRestoreQueue) {
+    const index = Math.min(
+      event.previousQueueIndex ?? queue.length,
+      queue.length,
+    );
+    queue.splice(index, 0, event.mediaId);
+  }
   return {
     ...state,
     userMedia: { ...state.userMedia, [event.mediaId]: event.previousState },
     events: state.events.filter((_, index) => index !== lastIndex),
+    queue,
   };
 };
 

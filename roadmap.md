@@ -20,6 +20,7 @@ Production checkpoint on 2026-07-17:
 - The existing Auth user was backfilled into `public.profiles`.
 - GitHub Actions validates required Neon variables and refuses to publish an unconfigured demo build.
 - Repository contracts, database mappers, local persistence, Neon library persistence, explicit retry-safe first sync, optimistic rollback, and stale-write rejection are implemented.
+- The first production account completed cloud initialization: 12 mapped library rows, 6 distinct watch events, 5 Verdicts, and 4 exact-progress rows were verified with no duplicate client event IDs.
 
 The following areas are demonstrations rather than production integrations:
 
@@ -81,7 +82,8 @@ Status: **In progress**
 - [x] Hydrate authenticated library state from the database when cloud data exists.
 - [x] Add serialized optimistic library updates with rollback and a visible error state.
 - [x] Add an explicit, idempotent browser-library import instead of silently copying data.
-- [ ] Complete production account, refresh, second-device, and isolation acceptance.
+- [x] Complete and audit the first production account import.
+- [ ] Complete refresh, second-device, and second-account isolation acceptance.
 
 ### Phase 1 exit gate
 
@@ -206,7 +208,7 @@ Every user-data type has an authorization policy, backup strategy, export path, 
 1. **Implemented:** Generate complete database types and add a live deployed-schema/RLS policy contract check.
 2. **Implemented:** Define repository interfaces and move `localStorage` behind a local implementation.
 3. **Implemented:** Seed a development media catalog with stable local-ID-to-UUID mappings.
-4. **Acceptance next:** Copy the signed-in browser library to Neon, then verify load, add, Up Next, refresh, and second-device synchronization in production.
+4. **Partially accepted:** The signed-in browser library is initialized and its database integrity is verified. Refresh and second-device synchronization remain.
 5. **Acceptance next:** Verify episode tracking, undo history, Verdicts, qualities, and optimistic rollback against the production Data API.
 6. **Implemented:** Add an explicit and idempotent migration path for existing local demo data.
 7. Replace seeded media discovery with a trusted server-side metadata adapter.
@@ -221,6 +223,15 @@ The next slice is complete when two accounts can use the production site and dem
 3. Account B cannot read or change Account A’s private rows.
 4. Failed mutations roll back visibly without losing the previous state.
 5. Demo mode continues to work without Neon environment variables.
+
+Current production evidence:
+
+- [x] Account A initialized its cloud library.
+- [x] All 12 library rows resolve through stable catalog mappings.
+- [x] Tracking and Verdict writes are present with no duplicate client event IDs.
+- [x] Queue hydration preserves positioned planned and watching titles while omitting final states.
+- [ ] A refresh and second device show the same queue, progress, and Verdict state.
+- [ ] Account B cannot read or change Account A’s rows.
 
 ## References
 

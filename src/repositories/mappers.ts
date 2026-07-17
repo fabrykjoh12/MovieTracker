@@ -15,6 +15,7 @@ const watchEventTypes = new Set<WatchEvent["type"]>([
   "rewatch",
 ]);
 const qualitySet = new Set<string>(verdictQualities);
+const queueFinalStatuses = new Set(["completed", "dropped", "archived"]);
 
 function jsonObject(value: Json): Record<string, Json | undefined> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -64,6 +65,7 @@ function mapWatchEvent(
   const metadata = jsonObject(row.metadata);
   const season = metadata.season;
   const episode = metadata.episode;
+  const previousQueueIndex = metadata.previousQueueIndex;
   const previousState = metadata.previousState;
   return {
     id: row.id,
@@ -72,6 +74,7 @@ function mapWatchEvent(
     watchedAt: row.watched_at,
     ...(typeof season === "number" ? { season } : {}),
     ...(typeof episode === "number" ? { episode } : {}),
+    ...(typeof previousQueueIndex === "number" ? { previousQueueIndex } : {}),
     ...(previousState &&
     typeof previousState === "object" &&
     !Array.isArray(previousState) &&
@@ -176,7 +179,8 @@ export function mapLibrarySnapshot(
   const queue = statesWithQueue
     .filter(
       (entry) =>
-        entry.state.status === "up-next" && entry.queuePosition !== undefined,
+        !queueFinalStatuses.has(entry.state.status) &&
+        entry.queuePosition !== undefined,
     )
     .sort((left, right) => left.queuePosition! - right.queuePosition!)
     .map((entry) => entry.state.mediaId);

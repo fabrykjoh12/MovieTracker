@@ -108,8 +108,10 @@ export const reducer = (state: AppState, action: Action): AppState => {
       if (!item || !current) return state;
       if (item.format === "movie") {
         const previousState = structuredClone(current);
+        const previousQueueIndex = state.queue.indexOf(item.id);
         return {
           ...state,
+          queue: state.queue.filter((id) => id !== item.id),
           userMedia: {
             ...state.userMedia,
             [item.id]: {
@@ -126,6 +128,7 @@ export const reducer = (state: AppState, action: Action): AppState => {
               type: "movie",
               watchedAt: now,
               previousState,
+              ...(previousQueueIndex < 0 ? {} : { previousQueueIndex }),
             },
           ],
         };

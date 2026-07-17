@@ -17,6 +17,22 @@ const mediaRow: Tables<"media"> = {
   created_at: "2026-07-17T00:00:00.000Z",
 };
 
+const queuedPlannedMedia: Tables<"media"> = {
+  ...mediaRow,
+  id: "00000000-0000-4000-8000-000000000002",
+  format: "movie",
+  title: "Perfect Days",
+  metadata: { localId: "perfect-days" },
+};
+
+const completedMedia: Tables<"media"> = {
+  ...mediaRow,
+  id: "00000000-0000-4000-8000-000000000003",
+  format: "movie",
+  title: "Past Lives",
+  metadata: { localId: "past-lives" },
+};
+
 describe("database mappers", () => {
   it("hydrates local domain IDs, queue order, progress, events, and Verdicts", () => {
     const snapshot = mapLibrarySnapshot(
@@ -120,5 +136,36 @@ describe("database mappers", () => {
     );
 
     expect(snapshot).toEqual({ userMedia: {}, events: [], queue: [] });
+  });
+
+  it("restores deliberate queue positions regardless of active status", () => {
+    const baseState: Tables<"user_media_states"> = {
+      id: "state-queued",
+      user_id: "user-1",
+      media_id: queuedPlannedMedia.id,
+      status: "planned",
+      progress_season: null,
+      progress_episode: null,
+      intent: { queuePosition: 1 },
+      saved_at: "2026-07-01T00:00:00.000Z",
+      updated_at: "2026-07-17T00:00:00.000Z",
+    };
+    const snapshot = mapLibrarySnapshot(
+      [queuedPlannedMedia, completedMedia],
+      [
+        baseState,
+        {
+          ...baseState,
+          id: "state-completed",
+          media_id: completedMedia.id,
+          status: "completed",
+          intent: { queuePosition: 0 },
+        },
+      ],
+      [],
+      [],
+    );
+
+    expect(snapshot.queue).toEqual(["perfect-days"]);
   });
 });

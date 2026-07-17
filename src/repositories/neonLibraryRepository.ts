@@ -170,6 +170,9 @@ export function createNeonLibraryRepository(
         clientEventId: event.id,
         ...(event.season === undefined ? {} : { season: event.season }),
         ...(event.episode === undefined ? {} : { episode: event.episode }),
+        ...(event.previousQueueIndex === undefined
+          ? {}
+          : { previousQueueIndex: event.previousQueueIndex }),
         ...(event.previousState === undefined
           ? {}
           : { previousState: event.previousState as unknown as Json }),
