@@ -1,4 +1,6 @@
 import type { AppState, Media, SocialPost } from "./types";
+import { applyTmdbMetadata } from "./catalog/tmdb";
+import { tmdbCatalog } from "./generated/tmdbCatalog";
 
 const image = (id: string, width: number, height: number) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&h=${height}&q=86`;
@@ -17,7 +19,7 @@ const episodes = (season: number, titles: string[]) =>
       ][index % 3] ?? "The story continues.",
   }));
 
-export const media: Media[] = [
+const fallbackMedia: Media[] = [
   {
     id: "severance",
     title: "Severance",
@@ -475,6 +477,12 @@ export const media: Media[] = [
     language: "Korean",
   },
 ];
+
+export const media: Media[] = fallbackMedia.map((item) =>
+  applyTmdbMetadata(item, tmdbCatalog.entries[item.id]),
+);
+
+export const hasTmdbCatalog = Object.keys(tmdbCatalog.entries).length > 0;
 
 const savedAt = (daysAgo: number) =>
   new Date(Date.now() - daysAgo * 86400000).toISOString();

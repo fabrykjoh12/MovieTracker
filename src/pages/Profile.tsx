@@ -9,7 +9,7 @@ import {
   Tv,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { media } from "../data";
+import { hasTmdbCatalog, media } from "../data";
 import { formatVerdict } from "../domain";
 import { useStore } from "../store";
 
@@ -221,10 +221,32 @@ export function Profile() {
           <span className="cloud-medium">Ambiguous endings</span>
         </div>
       </section>
-      <p className="art-credit">
-        Demo editorial imagery provided by Unsplash. Media metadata is local
-        demonstration data.
-      </p>
+      {hasTmdbCatalog ? (
+        <footer className="art-credit tmdb-credit">
+          <a
+            href="https://www.themoviedb.org"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Visit The Movie Database"
+          >
+            <img
+              src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_square_2-d537fb228cf3ded904ef09b136fe3fec72548ebc1fea3fbbd1ad9e36364db38b.svg"
+              alt="TMDB"
+              width="40"
+              height="29"
+            />
+          </a>
+          <span>
+            This product uses TMDB and the TMDB APIs but is not endorsed,
+            certified, or otherwise approved by TMDB.
+          </span>
+        </footer>
+      ) : (
+        <p className="art-credit">
+          Demo editorial imagery provided by Unsplash. Media metadata is local
+          demonstration data.
+        </p>
+      )}
     </div>
   );
 }

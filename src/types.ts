@@ -61,6 +61,11 @@ export interface Media {
   country: string;
   language: string;
   availabilityNote?: string;
+  provider?: {
+    name: "tmdb";
+    id: number;
+    mediaType: "movie" | "tv";
+  };
 }
 
 export interface EpisodeProgress {

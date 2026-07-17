@@ -2346,6 +2346,22 @@ blockquote {
   font-size: 0.56rem;
   text-align: center;
 }
+.tmdb-credit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.tmdb-credit img {
+  width: 40px;
+  height: auto;
+  display: block;
+}
+.tmdb-credit span {
+  max-width: 520px;
+  text-align: left;
+  line-height: 1.45;
+}
 
 /* Account */
 .account-link {

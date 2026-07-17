@@ -21,6 +21,7 @@ Production checkpoint on 2026-07-17:
 - GitHub Actions validates required Neon variables and refuses to publish an unconfigured demo build.
 - Repository contracts, database mappers, local persistence, Neon library persistence, explicit retry-safe first sync, optimistic rollback, and stale-write rejection are implemented.
 - The first production account completed cloud initialization: 12 mapped library rows, 6 distinct watch events, 5 Verdicts, and 4 exact-progress rows were verified with no duplicate client event IDs.
+- A secure build-time TMDB adapter can enrich all 14 curated titles with real posters, backdrops, synopsis, runtime, year, and genres while retaining the explicit Unsplash fallback. Production activation is waiting for the `TMDB_READ_ACCESS_TOKEN` GitHub Actions secret.
 
 The following areas are demonstrations rather than production integrations:
 
@@ -92,6 +93,9 @@ Two invited accounts can sign in on multiple devices. Each account sees only its
 ## Phase 2 — Real metadata and search
 
 - [ ] Register and approve the metadata-provider integration.
+- [x] Add stable TMDB provider mappings for the curated beta catalog.
+- [x] Add a server/build-only TMDB sync that never exposes the read token to the browser.
+- [x] Add provider-failure and incomplete-artwork fallbacks plus conditional TMDB attribution.
 - [ ] Add a server-side metadata proxy so provider credentials never reach the browser.
 - [ ] Add provider ID mapping and metadata cache tables.
 - [ ] Implement movie, series, season, episode, person, and creator search.
@@ -211,7 +215,7 @@ Every user-data type has an authorization policy, backup strategy, export path, 
 4. **Partially accepted:** The signed-in browser library is initialized and its database integrity is verified. Refresh and second-device synchronization remain.
 5. **Acceptance next:** Verify episode tracking, undo history, Verdicts, qualities, and optimistic rollback against the production Data API.
 6. **Implemented:** Add an explicit and idempotent migration path for existing local demo data.
-7. Replace seeded media discovery with a trusted server-side metadata adapter.
+7. **In progress:** The secure curated-catalog TMDB adapter is implemented. Add the production TMDB secret, verify real artwork, then add the trusted search proxy and metadata cache.
 8. Complete real daily-use flows before expanding social features.
 
 ## Next acceptance test

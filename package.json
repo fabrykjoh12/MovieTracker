@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"scripts/**/*.{js,mjs}\" \"*.{json,js,ts,html,md}\"",
+    "catalog:sync": "node --env-file-if-exists=.env.local scripts/sync-tmdb-catalog.mjs",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"scripts/**/*.{js,mjs}\" \"catalog/**/*.json\" \"*.{json,js,ts,html,md}\"",
     "lint": "eslint .",
     "typecheck": "tsc -b --pretty false",
     "test": "vitest run",
