@@ -82,7 +82,7 @@ describe("global catalog search", () => {
       screen.getByRole("button", { name: "Search MovieTracker" }),
     );
     expect(
-      screen.getByRole("dialog", { name: "Find a movie or series" }),
+      screen.getByRole("dialog", { name: "Search the archive" }),
     ).toBeInTheDocument();
 
     await user.type(
@@ -107,7 +107,9 @@ describe("global catalog search", () => {
       }),
     ).toBeDisabled();
 
-    await user.click(screen.getByRole("button", { name: "View" }));
+    await user.click(
+      screen.getByRole("button", { name: `View ${result.title}` }),
+    );
     expect(
       await screen.findByRole("heading", { name: result.title }),
     ).toBeInTheDocument();
@@ -125,6 +127,9 @@ describe("global catalog search", () => {
       name: "Search movies and series globally",
     });
     await waitFor(() => expect(input).toHaveFocus());
+    expect(
+      screen.getByRole("button", { name: "Perfect Days" }),
+    ).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     await waitFor(() =>

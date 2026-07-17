@@ -7,7 +7,8 @@ import type { MediaSearchResult } from "../catalog/search";
 import { useStore } from "../store";
 import type { MediaFormat } from "../types";
 
-export type CatalogSearchState = "idle" | "searching" | "ready" | "error";
+export type CatalogSearchState =
+  "idle" | "searching" | "ready" | "success" | "error";
 
 export function catalogResultKey(result: MediaSearchResult) {
   return `${result.mediaType}-${result.providerId}`;
@@ -20,7 +21,7 @@ export function catalogResultLocalId(result: MediaSearchResult) {
 export function useCatalogSearch() {
   const { dispatch, catalog, registerCatalogItem } = useStore();
   const [query, setQueryValue] = useState("");
-  const [format, setFormat] = useState<"any" | MediaFormat>("any");
+  const [format, setFormatValue] = useState<"any" | MediaFormat>("any");
   const [searchState, setSearchState] = useState<CatalogSearchState>("idle");
   const [results, setResults] = useState<MediaSearchResult[]>([]);
   const [searchMessage, setSearchMessage] = useState("");
@@ -35,6 +36,7 @@ export function useCatalogSearch() {
 
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
+      setResults([]);
       setSearchState("searching");
       setSearchMessage("");
       client
@@ -74,6 +76,19 @@ export function useCatalogSearch() {
       setResults([]);
       setSearchState("idle");
       setSearchMessage("");
+    } else {
+      setResults([]);
+      setSearchState("searching");
+      setSearchMessage("");
+    }
+  };
+
+  const setFormat = (nextFormat: "any" | MediaFormat) => {
+    setFormatValue(nextFormat);
+    if (query.trim().length >= 2) {
+      setResults([]);
+      setSearchState("searching");
+      setSearchMessage("");
     }
   };
 
@@ -88,7 +103,7 @@ export function useCatalogSearch() {
       const item = existing ?? (await client.importTitle(result));
       if (!existing) await registerCatalogItem(item);
       dispatch({ type: "add", mediaId: item.id });
-      setSearchState("ready");
+      setSearchState("success");
       setSearchMessage(`${item.title} was added to your library.`);
       return item;
     } catch (error) {

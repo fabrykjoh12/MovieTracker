@@ -1,11 +1,14 @@
 import { useEffect, useRef } from "react";
 import {
   AlertCircle,
+  ArrowUpRight,
+  BookmarkPlus,
   Check,
+  Clapperboard,
   Film,
   LoaderCircle,
-  Plus,
   Search,
+  SearchX,
   Tv,
   X,
 } from "lucide-react";
@@ -21,6 +24,8 @@ interface GlobalSearchDialogProps {
   open: boolean;
   onClose: () => void;
 }
+
+const searchStarters = ["The Bear", "Perfect Days", "Severance"];
 
 export function GlobalSearchDialog({ open, onClose }: GlobalSearchDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -74,10 +79,12 @@ export function GlobalSearchDialog({ open, onClose }: GlobalSearchDialogProps) {
       }}
     >
       <header className="global-search-header">
-        <div>
-          <p className="eyebrow">THE WHOLE CATALOG</p>
-          <h2 id="global-search-title">Find a movie or series</h2>
-        </div>
+        <p className="eyebrow">
+          <span aria-hidden="true" />
+          THE WHOLE CATALOG
+        </p>
+        <h2 id="global-search-title">Search the archive</h2>
+        <p>Real films and series, ready for your library.</p>
         <button
           className="dialog-close"
           type="button"
@@ -90,23 +97,24 @@ export function GlobalSearchDialog({ open, onClose }: GlobalSearchDialogProps) {
 
       {configured ? (
         <>
-          <label className="global-search-input">
-            <Search size={21} aria-hidden="true" />
-            <span className="sr-only">Search movies and series globally</span>
-            <input
-              ref={inputRef}
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Try ‘The Bear’ or ‘Perfect Days’"
-              autoComplete="off"
-            />
-            {searchState === "searching" && (
-              <LoaderCircle className="spin" size={19} aria-hidden="true" />
-            )}
-          </label>
-
-          <div className="global-search-tools">
+          <div className="global-search-query">
+            <label className="global-search-input">
+              <Search size={22} aria-hidden="true" />
+              <span className="sr-only">Search movies and series globally</span>
+              <input
+                ref={inputRef}
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search by title"
+                autoComplete="off"
+              />
+              {searchState === "searching" ? (
+                <LoaderCircle className="spin" size={19} aria-hidden="true" />
+              ) : (
+                <kbd aria-hidden="true">ESC</kbd>
+              )}
+            </label>
             <div className="catalog-format" aria-label="Search format">
               {(["any", "movie", "series"] as const).map((value) => (
                 <button
@@ -124,92 +132,189 @@ export function GlobalSearchDialog({ open, onClose }: GlobalSearchDialogProps) {
                   {value === "any"
                     ? "All"
                     : value === "movie"
-                      ? "Movies"
+                      ? "Films"
                       : "Series"}
                 </button>
               ))}
             </div>
-            <span>Press Esc to close</span>
           </div>
 
-          <p
-            className={`global-search-status ${searchState}`}
-            role="status"
-            aria-live="polite"
-          >
-            {searchMessage || "Type at least two characters to search."}
-          </p>
-
-          <div className="global-search-results">
-            {results.map((result) => {
-              const localId = catalogResultLocalId(result);
-              const saved = Boolean(state.userMedia[localId]);
-              const imported = catalog.some((item) => item.id === localId);
-              const busy = busyKey === catalogResultKey(result);
-              return (
-                <article key={catalogResultKey(result)}>
-                  {result.poster ? (
-                    <img
-                      src={result.poster}
-                      alt=""
-                      width="128"
-                      height="192"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="global-search-art" aria-hidden="true">
-                      {result.format === "movie" ? (
-                        <Film size={25} />
-                      ) : (
-                        <Tv size={25} />
-                      )}
+          <section className="global-search-stage" aria-label="Search results">
+            {searchState === "idle" && (
+              <div className="global-search-start">
+                <div className="global-search-start-mark" aria-hidden="true">
+                  <Clapperboard size={28} />
+                  <span>01</span>
+                </div>
+                <div>
+                  <p className="eyebrow">
+                    {query.trim().length === 1
+                      ? "KEEP TYPING"
+                      : "START WITH A TITLE"}
+                  </p>
+                  <h3>
+                    {query.trim().length === 1
+                      ? "One more character."
+                      : "Find the exact story you mean."}
+                  </h3>
+                  <p>
+                    Search across films and series, then save a complete title
+                    with artwork, runtime and season information.
+                  </p>
+                  {query.trim().length === 0 && (
+                    <div className="global-search-suggestions">
+                      <span>Try</span>
+                      {searchStarters.map((starter) => (
+                        <button
+                          key={starter}
+                          type="button"
+                          onClick={() => setQuery(starter)}
+                        >
+                          {starter}
+                        </button>
+                      ))}
                     </div>
                   )}
-                  <div className="global-search-result-copy">
-                    <p>
-                      {result.format} · {result.year ?? "Date pending"}
-                    </p>
-                    <h3>{result.title}</h3>
-                    {result.originalTitle && (
-                      <small>{result.originalTitle}</small>
-                    )}
-                    <span>{result.synopsis}</span>
+                </div>
+              </div>
+            )}
+
+            {searchState === "searching" && (
+              <div className="global-search-loading" role="status">
+                <span className="sr-only">Searching the catalog</span>
+                {[0, 1, 2, 3].map((item) => (
+                  <div key={item} aria-hidden="true">
+                    <i />
+                    <span>
+                      <b />
+                      <b />
+                      <b />
+                    </span>
                   </div>
-                  <div className="global-search-result-actions">
-                    {imported && (
-                      <button
-                        type="button"
-                        className="search-result-secondary"
-                        onClick={() => openTitle(localId)}
+                ))}
+              </div>
+            )}
+
+            {searchState === "ready" && results.length === 0 && (
+              <div className="global-search-empty" role="status">
+                <SearchX size={28} />
+                <div>
+                  <h3>No matching titles</h3>
+                  <p>
+                    {searchMessage} Try another spelling or a broader format.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {searchState === "error" && results.length === 0 && (
+              <div className="global-search-empty is-error" role="alert">
+                <AlertCircle size={28} />
+                <div>
+                  <h3>Search could not connect</h3>
+                  <p>{searchMessage}</p>
+                </div>
+              </div>
+            )}
+
+            {results.length > 0 && (
+              <>
+                <div className={`global-search-meta ${searchState}`}>
+                  <p role="status" aria-live="polite">
+                    {searchMessage}
+                  </p>
+                  <span>Metadata and artwork by TMDB</span>
+                </div>
+                <div className="global-search-results">
+                  {results.map((result) => {
+                    const localId = catalogResultLocalId(result);
+                    const saved = Boolean(state.userMedia[localId]);
+                    const imported = catalog.some(
+                      (item) => item.id === localId,
+                    );
+                    const busy = busyKey === catalogResultKey(result);
+                    return (
+                      <article
+                        key={catalogResultKey(result)}
+                        className={saved ? "is-saved" : ""}
                       >
-                        View
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="search-result-primary"
-                      disabled={saved || busy || busyKey !== undefined}
-                      onClick={() => void addToLibrary(result)}
-                      aria-label={
-                        saved
-                          ? `${result.title} is in your library`
-                          : `Add ${result.title} to library`
-                      }
-                    >
-                      {busy ? (
-                        <LoaderCircle className="spin" size={16} />
-                      ) : saved ? (
-                        <Check size={16} />
-                      ) : (
-                        <Plus size={16} />
-                      )}
-                      {busy ? "Adding" : saved ? "Saved" : "Add"}
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+                        <div className="global-search-poster">
+                          {result.poster ? (
+                            <img
+                              src={result.poster}
+                              alt=""
+                              width="160"
+                              height="240"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div
+                              className="global-search-art"
+                              aria-hidden="true"
+                            >
+                              {result.format === "movie" ? (
+                                <Film size={25} />
+                              ) : (
+                                <Tv size={25} />
+                              )}
+                            </div>
+                          )}
+                          <span>
+                            {result.format === "movie" ? "Film" : "Series"}
+                          </span>
+                        </div>
+                        <div className="global-search-result-copy">
+                          <p>{result.year ?? "Release date pending"}</p>
+                          <h3>{result.title}</h3>
+                          {result.originalTitle && (
+                            <small>{result.originalTitle}</small>
+                          )}
+                          <span>{result.synopsis}</span>
+                          <div className="global-search-result-actions">
+                            {imported && (
+                              <button
+                                type="button"
+                                className="search-result-secondary"
+                                onClick={() => openTitle(localId)}
+                                aria-label={`View ${result.title}`}
+                              >
+                                View <ArrowUpRight size={14} />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="search-result-primary"
+                              disabled={saved || busy || busyKey !== undefined}
+                              onClick={() => void addToLibrary(result)}
+                              aria-label={
+                                saved
+                                  ? `${result.title} is in your library`
+                                  : `Add ${result.title} to library`
+                              }
+                            >
+                              {busy ? (
+                                <LoaderCircle className="spin" size={15} />
+                              ) : saved ? (
+                                <Check size={15} />
+                              ) : (
+                                <BookmarkPlus size={15} />
+                              )}
+                              {busy ? "Saving" : saved ? "Saved" : "Save"}
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </section>
+
+          <footer className="global-search-footer">
+            <span>Search by title · Filter by format · Save in one step</span>
+            <span>Press ESC to close</span>
+          </footer>
         </>
       ) : (
         <div className="global-search-unavailable" role="status">
