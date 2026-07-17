@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "preview": "vite preview",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
-    "db:verify": "node --env-file-if-exists=.env.local scripts/verify-database.mjs"
+    "db:verify": "node --env-file-if-exists=.env.local scripts/verify-database.mjs",
+    "db:acceptance": "node --env-file-if-exists=.env.local scripts/verify-production-data.mjs"
   },
   "dependencies": {
     "@neondatabase/neon-js": "^0.6.2-beta",
@@ -31,6 +32,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260717.1",
     "@eslint/js": "^10.0.0",
+    "@neondatabase/postgrest-js": "^0.2.0-beta",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

@@ -4,7 +4,7 @@
 
 MovieTracker is a premium movie and series journal built around four connected experiences: Tonight, Next Up, My Library, and My Taste. The product promise is: “Find something worth watching. Track it effortlessly. Build a library that feels like you.” The working tagline is “Your life in stories.”
 
-The current application is a polished, responsive React prototype with real Neon authentication and a production database foundation. Media discovery, shelves, social activity, and recommendations still use realistic seed data. Authenticated library, queue, tracking, undo, and title-level Verdict persistence are implemented through Neon, but must not be described as production-verified cross-device synchronization until the acceptance test in `roadmap.md` passes.
+The current application is a polished, responsive React prototype with real Neon authentication and a production database foundation. Media discovery, shelves, social activity, and recommendations still use realistic seed data. Authenticated library, queue, tracking, undo, and title-level Verdict persistence are implemented through Neon. Production Auth/Data API acceptance now covers two isolated accounts and an independent second client; a physical second-device browser smoke test remains open.
 
 Read `README.md` and `roadmap.md` before changing architecture or scope.
 
@@ -113,20 +113,20 @@ For an uninitialized cloud library, the app deliberately leaves the browser libr
 
 After first sync, library state, queue order, exact numeric series progress, watch events, undo removal, title-level Verdicts, qualities, tags, and rankings are sent through the authenticated Neon Data API. Mutations apply optimistically in a serialized queue. Updates and deletes include the last observed `updated_at`, so a stale device cannot overwrite a newer row; conflicts reload the latest cloud state and show a visible error. Other failures roll back the latest optimistic mutation, while ambiguous concurrent failure triggers a cloud reload. Cloud-owned library data is not written into the generic signed-out demo cache.
 
-Repository and mapping unit tests exist, and `npm run db:verify` checks the deployed table/RLS contract. The two-account runtime isolation test still needs test credentials or a second provisioned beta account.
+Repository and mapping unit tests exist, `npm run db:verify` checks the deployed table/RLS contract, and `npm run db:acceptance` runs a cleanup-safe production test through real Neon Auth and the Data API. Its disposable mode creates two one-run users, verifies Account A writes and independent-client hydration, proves Account B cannot read or mutate Account A owner rows, and deletes all test rows, Auth users, and cascaded profiles.
 
-The first production account completed initialization after the third migration. The read-only database audit found 12 mapped library states, 6 distinct watch events, 5 valid Verdicts, 4 exact-progress rows, and zero duplicate client event IDs. The imported account also exercised new movie and episode tracking after setup. Refresh/second-device UI acceptance and a second-account isolation test remain open.
+The first production account completed initialization after the third migration. The read-only database audit found 12 mapped library states, 6 distinct watch events, 5 valid Verdicts, 4 exact-progress rows, and zero duplicate client event IDs. The imported account also exercised new movie and episode tracking after setup. On 2026-07-17, disposable Accounts A and B passed the live isolation harness, including queue/progress/history/Verdict writes, independent-client hydration, zero foreign reads, a zero-row foreign update, and an RLS-rejected forged insert. Physical second-device UI acceptance remains open.
 
 The deliberate queue is independent from library status: positioned planned and watching titles are valid queue members. Hydration restores every positioned non-final title and excludes completed, dropped, and archived titles. Completing a queued movie removes it immediately; undo restores its exact prior position, with a backward-compatible append fallback for older events.
 
 ## Next vertical slice
 
-Complete the still-open account and cross-device acceptance slice:
+Complete the remaining production browser smoke tests, then expand persisted personal data:
 
 1. Verify a real uncurated movie and series through the production Discover interface.
-2. Complete the second-device library synchronization test.
-3. Complete the two-account isolation test against production Neon RLS.
-4. Verify episode tracking, undo, Verdict qualities, and rollback behavior through the production Data API.
+2. Confirm the accepted queue, progress, and Verdict flow in a physical second-device browser.
+3. Add Neon persistence for editable profiles and custom shelves.
+4. Add export and deletion controls before inviting more beta users.
 
 Add unit tests for mapping and repository behavior plus live integration tests for RLS. Keep provider metadata writes on a trusted server boundary; the browser must not receive privileged database credentials.
 
@@ -200,4 +200,4 @@ The in-editor browser runtime was unavailable during the last session. Productio
 - Include every uncommitted session-edited file in the proposal after cross-checking session files with `git status`.
 - After the user approves a commit proposal, push it to `origin` automatically. The user explicitly does not want to be asked to run `git push`.
 - Monitor the resulting Pages workflow and verify the live bundle when deployment-related files change.
-- Do not mark the overall product complete: authentication, the database foundation, and the first cloud-library implementation are working, but cross-device and two-account isolation acceptance are still pending.
+- Do not mark the overall product complete: authentication, catalog search, the database foundation, and automated account isolation are working, but physical cross-device UI acceptance and several personal/social repositories remain pending.

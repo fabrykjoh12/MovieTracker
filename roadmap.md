@@ -8,7 +8,7 @@ The beta is ready when an invited user can sign in, find real media, maintain a 
 
 ## Current state
 
-The deployed application is a polished interactive prototype with working Neon authentication and a production database foundation. Demo mode remains local-first. The repository now contains the first Neon library synchronization path, including an explicit, idempotent browser-to-cloud import; production account and cross-device acceptance are still pending.
+The deployed application is a polished interactive prototype with working Neon authentication and a production database foundation. Demo mode remains local-first. The repository now contains the first Neon library synchronization path, including an explicit, idempotent browser-to-cloud import. Production Data API account isolation and independent-client hydration are accepted; a physical second-device browser smoke test remains.
 
 Production checkpoint on 2026-07-17:
 
@@ -70,7 +70,7 @@ Status: **In progress**
 - [x] Apply and audit the initial migration against the production Neon branch.
 - [x] Generate database TypeScript types from the deployed schema.
 - [x] Add an automated deployed-schema and RLS policy contract check.
-- [ ] Add authenticated two-account RLS integration tests.
+- [x] Add authenticated two-account RLS integration tests.
 - [x] Add a stable development catalog with explicit local-ID-to-UUID mappings.
 - [ ] Separate development and production branches and seed catalogs.
 
@@ -84,7 +84,8 @@ Status: **In progress**
 - [x] Add serialized optimistic library updates with rollback and a visible error state.
 - [x] Add an explicit, idempotent browser-library import instead of silently copying data.
 - [x] Complete and audit the first production account import.
-- [ ] Complete refresh, second-device, and second-account isolation acceptance.
+- [x] Complete refresh, independent-client, and second-account Data API acceptance.
+- [ ] Complete a physical second-device browser smoke test.
 
 ### Phase 1 exit gate
 
@@ -213,12 +214,12 @@ Every user-data type has an authorization policy, backup strategy, export path, 
 1. **Implemented:** Generate complete database types and add a live deployed-schema/RLS policy contract check.
 2. **Implemented:** Define repository interfaces and move `localStorage` behind a local implementation.
 3. **Implemented:** Seed a development media catalog with stable local-ID-to-UUID mappings.
-4. **Partially accepted:** The signed-in browser library is initialized and its database integrity is verified. Refresh and second-device synchronization remain.
-5. **Acceptance next:** Verify episode tracking, undo history, Verdicts, qualities, and optimistic rollback against the production Data API.
+4. **API-accepted:** The signed-in library is initialized, and an independently authenticated client hydrates the same queue, progress, history, and Verdict state.
+5. **Accepted:** Episode tracking, Verdict qualities, account isolation, cleanup, and visible optimistic rollback are verified against the production Data API. A physical second-device browser smoke remains.
 6. **Implemented:** Add an explicit and idempotent migration path for existing local demo data.
 7. **Implemented:** Activate and accept the secure curated-catalog TMDB adapter in production with 14 real posters, 14 real backdrops, and conditional attribution.
 8. **Implemented and API-accepted:** Add and deploy the trusted search Worker, provider ID mappings, metadata cache, dynamic catalog hydration, and Discover import flow.
-9. **Next acceptance:** Add a real uncurated movie and series through the production Discover interface after the Pages build receives `VITE_CATALOG_API_URL`.
+9. **Accepted:** Add real uncurated movies and series through the production Discover interface backed by the deployed catalog Worker.
 10. Complete real daily-use flows before expanding social features.
 
 ## Next acceptance test
@@ -237,8 +238,13 @@ Current production evidence:
 - [x] All 12 library rows resolve through stable catalog mappings.
 - [x] Tracking and Verdict writes are present with no duplicate client event IDs.
 - [x] Queue hydration preserves positioned planned and watching titles while omitting final states.
-- [ ] A refresh and second device show the same queue, progress, and Verdict state.
-- [ ] Account B cannot read or change Account A’s rows.
+- [x] A separate authenticated Account A client hydrates the same queue, progress, history, and Verdict state.
+- [x] Account B reads zero Account A rows, cannot update them, and cannot forge an Account A insert.
+- [x] A rejected optimistic mutation visibly restores the previous state and reports the sync error.
+- [x] Demo mode continues to pass the complete test and production-build suite without Neon variables.
+- [ ] A physical second-device browser session shows the same queue, progress, and Verdict state.
+
+The disposable production acceptance run on 2026-07-17 created two real Neon Auth identities, exercised owner-scoped writes and RLS isolation, and removed the test rows, Auth identities, and cascaded profiles before reporting success.
 
 ## References
 

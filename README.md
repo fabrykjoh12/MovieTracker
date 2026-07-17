@@ -31,6 +31,8 @@ npm run db:verify
 
 The migration creates the domain tables, profile synchronization trigger, indexes, and Row Level Security policies. It also records checksums so an applied migration cannot be silently rewritten. Enable the Data API only with JWT authentication through Neon Auth, and run Neon’s Data API Advisor before using real accounts.
 
+For production account isolation, run `$env:ACCEPTANCE_CREATE_EPHEMERAL='true'; npm run db:acceptance` in PowerShell to create two one-run Neon Auth users, exercise the real Data API, and delete both identities afterward. Alternatively, add two dedicated accounts to the four `ACCEPTANCE_ACCOUNT_*` variables in the gitignored `.env.local`, then run `npm run db:acceptance`. The harness writes queue/progress/history/Verdict data as Account A, hydrates it through a separate client, proves Account B cannot read or change it, and restores or deletes every acceptance row in a `finally` cleanup. It never prints generated credentials, configured credentials, email addresses, or user IDs.
+
 For GitHub Pages, add `VITE_NEON_AUTH_URL` and `VITE_NEON_DATA_API_URL` as Actions variables. Repository variables under **Settings → Secrets and variables → Actions → Variables** are preferred; variables scoped to the `github-pages` environment are also supported. The deployment intentionally fails when either value is missing so it cannot silently publish demo mode. Add the local and deployed URLs to Neon Auth’s allowed origins. `DATABASE_URL` is server-only and must never be added to GitHub Pages or prefixed with `VITE_`.
 
 Public registration is intentionally absent from the app. Beta users should be provisioned through a trusted administrative flow, and sign-up must remain disabled in the Neon Auth configuration.
