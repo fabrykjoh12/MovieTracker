@@ -15,11 +15,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { media } from "../data";
 import { formatVerdict, statusLabel } from "../domain";
 import { PosterCard } from "../components/PosterCard";
 import { useStore } from "../store";
-import type { LibraryStatus } from "../types";
+import type { LibraryStatus, Media } from "../types";
 
 type View = "shelves" | "gallery" | "queue" | "timeline" | "calendar" | "taste";
 const demoNow = Date.parse("2026-07-16T20:00:00.000Z");
@@ -33,13 +32,13 @@ const views: { id: View; label: string; icon: typeof Rows3 }[] = [
 ];
 
 export function Library() {
-  const { state, dispatch } = useStore();
+  const { state, dispatch, catalog } = useStore();
   const [view, setView] = useState<View>("shelves");
   const [status, setStatus] = useState<LibraryStatus | "all">("all");
   const [query, setQuery] = useState("");
   const libraryMedia = useMemo(
     () =>
-      media.filter((item) => {
+      catalog.filter((item) => {
         const userState = state.userMedia[item.id];
         return (
           userState &&
@@ -47,7 +46,7 @@ export function Library() {
           item.title.toLowerCase().includes(query.toLowerCase())
         );
       }),
-    [query, state.userMedia, status],
+    [catalog, query, state.userMedia, status],
   );
   const stale = Object.values(state.userMedia).filter(
     (item) =>
@@ -162,13 +161,13 @@ export function Library() {
 }
 
 function ShelvesView() {
-  const { state } = useStore();
+  const { state, catalog } = useStore();
   return (
     <section className="shelves-view" aria-label="Your shelves">
       {state.shelves.map((shelf, index) => {
-        const featured = media.find((item) => item.id === shelf.featuredId);
+        const featured = catalog.find((item) => item.id === shelf.featuredId);
         const shelfMedia = shelf.mediaIds
-          .map((id) => media.find((item) => item.id === id))
+          .map((id) => catalog.find((item) => item.id === id))
           .filter(Boolean);
         return (
           <article
@@ -216,7 +215,7 @@ function GalleryView({
   status,
   setStatus,
 }: {
-  items: typeof media;
+  items: Media[];
   status: LibraryStatus | "all";
   setStatus: (status: LibraryStatus | "all") => void;
 }) {
@@ -267,7 +266,7 @@ function GalleryView({
 }
 
 function QueueView() {
-  const { state, dispatch } = useStore();
+  const { state, dispatch, catalog } = useStore();
   return (
     <section className="queue-view">
       <header>
@@ -282,7 +281,7 @@ function QueueView() {
       </header>
       <ol>
         {state.queue.map((id, index) => {
-          const item = media.find((entry) => entry.id === id);
+          const item = catalog.find((entry) => entry.id === id);
           if (!item) return null;
           return (
             <li key={id}>
@@ -339,7 +338,7 @@ function QueueView() {
 }
 
 function TimelineView() {
-  const { state } = useStore();
+  const { state, catalog } = useStore();
   return (
     <section className="timeline-view">
       <header>
@@ -350,7 +349,7 @@ function TimelineView() {
         .slice()
         .reverse()
         .map((event) => {
-          const item = media.find((entry) => entry.id === event.mediaId);
+          const item = catalog.find((entry) => entry.id === event.mediaId);
           return (
             item && (
               <article key={event.id}>
@@ -386,6 +385,7 @@ function TimelineView() {
 }
 
 function CalendarView() {
+  const { catalog } = useStore();
   const dates = Array.from({ length: 14 }, (_, i) => ({
     day: 13 + i,
     weekday: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i % 7],
@@ -406,7 +406,10 @@ function CalendarView() {
             {index === 3 && <small>Today</small>}
             {index === 4 && (
               <Link to="/title/severance">
-                <img src={media[0]?.poster} alt="Severance" />
+                <img
+                  src={catalog.find((item) => item.id === "severance")?.poster}
+                  alt="Severance"
+                />
                 <span>New episode</span>
               </Link>
             )}
@@ -427,7 +430,7 @@ function UsersIcon() {
 }
 
 function TasteView() {
-  const { state } = useStore();
+  const { state, catalog } = useStore();
   const groups = ["all-timer", "loved", "liked", "mixed"] as const;
   return (
     <section className="taste-view">
@@ -440,7 +443,7 @@ function TasteView() {
         </p>
       </header>
       {groups.map((kind) => {
-        const items = media.filter(
+        const items = catalog.filter(
           (item) => state.userMedia[item.id]?.verdict?.kind === kind,
         );
         return (

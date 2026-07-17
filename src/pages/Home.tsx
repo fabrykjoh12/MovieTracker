@@ -9,7 +9,6 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { media } from "../data";
 import {
   nextEpisode,
   progressPercent,
@@ -21,11 +20,11 @@ import { TonightControls } from "../components/TonightControls";
 import { useStore } from "../store";
 
 export function Home() {
-  const { state, dispatch } = useStore();
-  const hero = media.find((item) => item.id === "severance")!;
+  const { state, dispatch, catalog } = useStore();
+  const hero = catalog.find((item) => item.id === "severance")!;
   const heroState = state.userMedia[hero.id];
   const upcoming = nextEpisode(hero, heroState?.progress);
-  const picks = tonightCandidates(media, state);
+  const picks = tonightCandidates(catalog, state);
   const progress = progressPercent(hero, heroState?.progress);
 
   const trackHero = () => dispatch({ type: "mark-next", mediaId: hero.id });
@@ -182,7 +181,7 @@ export function Home() {
               </time>
               <div className="event-art">
                 <img
-                  src={media.find((item) => item.id === "past-lives")?.poster}
+                  src={catalog.find((item) => item.id === "past-lives")?.poster}
                   alt=""
                 />
               </div>
@@ -200,7 +199,7 @@ export function Home() {
               </time>
               <div className="event-art">
                 <img
-                  src={media.find((item) => item.id === "andor")?.poster}
+                  src={catalog.find((item) => item.id === "andor")?.poster}
                   alt=""
                 />
               </div>

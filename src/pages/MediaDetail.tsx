@@ -14,7 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import { getMedia, socialPosts } from "../data";
+import { socialPosts } from "../data";
 import {
   aggregateVerdicts,
   formatVerdict,
@@ -40,11 +40,13 @@ const statuses: LibraryStatus[] = [
 
 export function MediaDetail() {
   const { id = "" } = useParams();
-  const item = getMedia(id);
-  const { state, dispatch } = useStore();
+  const { state, dispatch, catalog } = useStore();
+  const item = catalog.find((entry) => entry.id === id);
   const userState = state.userMedia[id];
   const [verdictOpen, setVerdictOpen] = useState(false);
-  const [season, setSeason] = useState(() => userState?.progress?.season ?? 1);
+  const [season, setSeason] = useState(
+    () => userState?.progress?.season ?? item?.seasons?.[0]?.number ?? 1,
+  );
   const [revealed, setRevealed] = useState<string[]>([]);
   const progress = item ? progressPercent(item, userState?.progress) : 0;
   const next = item ? nextEpisode(item, userState?.progress) : undefined;
@@ -69,7 +71,8 @@ export function MediaDetail() {
   );
 
   if (!item) return <Navigate to="/" replace />;
-  const seasonData = item.seasons?.find((entry) => entry.number === season);
+  const seasons = item.seasons ?? [];
+  const seasonData = seasons.find((entry) => entry.number === season);
   const completed = userState?.status === "completed";
   const track = () =>
     userState
@@ -108,21 +111,29 @@ export function MediaDetail() {
             </p>
             <h1>{item.title}</h1>
             <div className="detail-meta">
-              <span>{item.year}</span>
+              <span>{item.year || "Date pending"}</span>
               <span>{item.genres.slice(0, 2).join(" · ")}</span>
               <span>
                 {item.format === "movie"
-                  ? `${item.runtime} min`
-                  : `${item.seasons?.length} seasons`}
+                  ? item.runtime > 0
+                    ? `${item.runtime} min`
+                    : "Runtime unavailable"
+                  : item.seasons?.length
+                    ? `${item.seasons.length} seasons`
+                    : "Episode guide pending"}
               </span>
               <span>{item.language}</span>
             </div>
             <p className="detail-synopsis">{item.synopsis}</p>
             <div className="service-row">
-              <span>Watch on</span>
-              {item.services.map((service) => (
-                <strong key={service}>{service}</strong>
-              ))}
+              <span>{item.services.length ? "Watch on" : "Availability"}</span>
+              {item.services.length ? (
+                item.services.map((service) => (
+                  <strong key={service}>{service}</strong>
+                ))
+              ) : (
+                <strong>Not listed for Norway</strong>
+              )}
               {item.availabilityNote && <small>{item.availabilityNote}</small>}
             </div>
             <div className="detail-actions">
@@ -130,14 +141,18 @@ export function MediaDetail() {
                 className="primary-button"
                 type="button"
                 onClick={track}
-                disabled={item.format === "movie" && completed}
+                disabled={
+                  (item.format === "movie" && completed) ||
+                  (item.format === "series" && Boolean(userState) && !next)
+                }
               >
                 {userState ? (
                   item.format === "series" ? (
                     <>
                       <Play size={18} fill="currentColor" />
-                      Mark S{next?.season.number} E{next?.episode?.number}{" "}
-                      watched
+                      {next
+                        ? `Mark S${next.season.number} E${next.episode?.number} watched`
+                        : "Episode guide unavailable"}
                     </>
                   ) : completed ? (
                     <>
@@ -268,7 +283,7 @@ export function MediaDetail() {
           </section>
         )}
 
-        {item.format === "series" && item.seasons && (
+        {item.format === "series" && seasons.length > 0 && (
           <section className="episodes-section">
             <div className="section-heading">
               <div>
@@ -283,7 +298,7 @@ export function MediaDetail() {
                     value={season}
                     onChange={(event) => setSeason(Number(event.target.value))}
                   >
-                    {item.seasons.map((entry) => (
+                    {seasons.map((entry) => (
                       <option key={entry.number} value={entry.number}>
                         Season {entry.number} · {entry.year}
                       </option>
@@ -450,8 +465,12 @@ export function MediaDetail() {
         <section className="credits-section">
           <div>
             <p className="eyebrow">CREATED BY</p>
-            <h2>{item.creators.join(", ")}</h2>
-            <p>With {item.cast.join(", ")}</p>
+            <h2>{item.creators.join(", ") || "Creator information pending"}</h2>
+            <p>
+              {item.cast.length
+                ? `With ${item.cast.join(", ")}`
+                : "Cast information pending"}
+            </p>
           </div>
           <div>
             <History size={20} />

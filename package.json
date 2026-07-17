@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "worker:check": "tsc -p tsconfig.worker.json --noEmit && wrangler deploy --config worker/wrangler.jsonc --dry-run --outdir dist-worker",
+    "worker:dev": "wrangler dev --config worker/wrangler.jsonc",
+    "worker:deploy": "wrangler deploy --config worker/wrangler.jsonc",
     "catalog:sync": "node --env-file-if-exists=.env.local scripts/sync-tmdb-catalog.mjs",
-    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"scripts/**/*.{js,mjs}\" \"catalog/**/*.json\" \"*.{json,js,ts,html,md}\"",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"worker/**/*.{ts,jsonc}\" \"scripts/**/*.{js,mjs}\" \"catalog/**/*.json\" \"*.{json,js,ts,html,md}\"",
     "lint": "eslint .",
-    "typecheck": "tsc -b --pretty false",
+    "typecheck": "tsc -b --pretty false && tsc -p tsconfig.worker.json --noEmit --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
@@ -18,6 +21,7 @@
   },
   "dependencies": {
     "@neondatabase/neon-js": "^0.6.2-beta",
+    "@neondatabase/serverless": "^1.1.0",
     "lucide-react": "^0.525.0",
     "pg": "^8.16.3",
     "react": "^19.2.0",
@@ -25,6 +29,7 @@
     "react-router-dom": "^7.7.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260717.1",
     "@eslint/js": "^10.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -43,7 +48,8 @@
     "typescript": "^6.0.0",
     "typescript-eslint": "^8.64.0",
     "vite": "^8.1.0",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.0",
+    "wrangler": "^4.112.0"
   },
   "overrides": {
     "@better-auth/passkey": "1.6.23",

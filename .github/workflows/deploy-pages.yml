@@ -21,6 +21,7 @@ jobs:
     env:
       VITE_NEON_AUTH_URL: ${{ vars.VITE_NEON_AUTH_URL }}
       VITE_NEON_DATA_API_URL: ${{ vars.VITE_NEON_DATA_API_URL }}
+      VITE_CATALOG_API_URL: ${{ vars.VITE_CATALOG_API_URL }}
       TMDB_READ_ACCESS_TOKEN: ${{ secrets.TMDB_READ_ACCESS_TOKEN }}
     steps:
       - name: Checkout

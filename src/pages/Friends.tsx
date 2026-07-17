@@ -6,12 +6,11 @@ import {
   Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { media } from "../data";
 import { mutualMatches } from "../domain";
 import { useStore } from "../store";
 
 export function Friends() {
-  const { state, dispatch } = useStore();
+  const { state, dispatch, catalog } = useStore();
   const room = state.room;
   const matches = mutualMatches(room);
   return (
@@ -56,7 +55,9 @@ export function Friends() {
         </div>
         <div className="candidate-list">
           {room.candidates.map((candidate, index) => {
-            const item = media.find((entry) => entry.id === candidate.mediaId);
+            const item = catalog.find(
+              (entry) => entry.id === candidate.mediaId,
+            );
             const myVote = candidate.votes.You;
             if (!item) return null;
             return (

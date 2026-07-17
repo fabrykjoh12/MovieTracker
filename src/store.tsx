@@ -11,7 +11,7 @@ import {
 } from "react";
 import type { Dispatch, PropsWithChildren } from "react";
 import { useAuth } from "./auth/AuthProvider";
-import { initialState, media } from "./data";
+import { initialState, media as fallbackCatalog } from "./data";
 import {
   completeSeason,
   markNextEpisode,
@@ -21,6 +21,10 @@ import {
   undoLastTracking,
 } from "./domain";
 import { createLocalStateRepository } from "./repositories/localStateRepository";
+import {
+  createLocalCatalogRepository,
+  mergeCatalogs,
+} from "./repositories/localCatalogRepository";
 import {
   createNeonLibraryRepository,
   LibraryConflictError,
@@ -33,6 +37,7 @@ import { getNeonClient } from "./lib/neon";
 import type {
   AppState,
   LibraryStatus,
+  Media,
   Quality,
   TonightFilters,
   VerdictKind,
@@ -61,8 +66,13 @@ type Action =
   | { type: "reset" };
 
 const localStateRepository = createLocalStateRepository();
+const localCatalogRepository = createLocalCatalogRepository();
 
-export const reducer = (state: AppState, action: Action): AppState => {
+export const reducer = (
+  state: AppState,
+  action: Action,
+  catalog: Media[] = fallbackCatalog,
+): AppState => {
   const now = new Date().toISOString();
   switch (action.type) {
     case "add": {
@@ -103,7 +113,7 @@ export const reducer = (state: AppState, action: Action): AppState => {
       };
     }
     case "mark-next": {
-      const item = media.find((entry) => entry.id === action.mediaId);
+      const item = catalog.find((entry) => entry.id === action.mediaId);
       const current = state.userMedia[action.mediaId];
       if (!item || !current) return state;
       if (item.format === "movie") {
@@ -143,7 +153,7 @@ export const reducer = (state: AppState, action: Action): AppState => {
         : state;
     }
     case "complete-season": {
-      const item = media.find((entry) => entry.id === action.mediaId);
+      const item = catalog.find((entry) => entry.id === action.mediaId);
       const current = state.userMedia[action.mediaId];
       if (!item || !current) return state;
       const result = completeSeason(current, item, action.season, now);
@@ -249,22 +259,30 @@ interface LibrarySyncState {
 
 interface StoreValue {
   state: AppState;
+  catalog: Media[];
   dispatch: Dispatch<Action>;
   librarySync: LibrarySyncState;
   startCloudSync: () => Promise<void>;
   retryCloudSync: () => Promise<void>;
+  registerCatalogItem: (item: Media) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
+const baseReducer = (state: AppState, action: Action) =>
+  reducer(state, action, fallbackCatalog);
 
 export function StoreProvider({ children }: PropsWithChildren) {
   const { status: authStatus, user } = useAuth();
   const userId = user?.id;
   const [state, baseDispatch] = useReducer(
-    reducer,
+    baseReducer,
     initialState,
     localStateRepository.load,
   );
+  const [catalog, setCatalog] = useState(() =>
+    mergeCatalogs(fallbackCatalog, localCatalogRepository.load()),
+  );
+  const catalogRef = useRef(catalog);
   const stateRef = useRef(state);
   const cloudRepositoryRef = useRef<LibrarySyncRepository | null>(null);
   const mutationChainRef = useRef(Promise.resolve());
@@ -282,6 +300,12 @@ export function StoreProvider({ children }: PropsWithChildren) {
   const replaceState = useCallback((next: AppState) => {
     stateRef.current = next;
     baseDispatch({ type: "replace-state", state: next });
+  }, []);
+
+  const replaceCatalog = useCallback((next: Media[]) => {
+    catalogRef.current = next;
+    setCatalog(next);
+    localCatalogRepository.save(next);
   }, []);
 
   const hydrateLibrary = useCallback(
@@ -303,6 +327,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
           setLibrarySync({ status: "needs-import" });
           return;
         }
+        replaceCatalog(mergeCatalogs(fallbackCatalog, snapshot.catalog));
         hydrateLibrary(snapshot);
         setLibrarySync({ status: "synced" });
       } catch (error) {
@@ -316,7 +341,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
         });
       }
     },
-    [hydrateLibrary, setLibrarySync],
+    [hydrateLibrary, replaceCatalog, setLibrarySync],
   );
 
   useEffect(() => {
@@ -368,7 +393,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
   const dispatch = useCallback<Dispatch<Action>>(
     (action) => {
       const previous = stateRef.current;
-      const next = reducer(previous, action);
+      const next = reducer(previous, action, catalogRef.current);
       if (next === previous) return;
       replaceState(next);
 
@@ -453,15 +478,36 @@ export function StoreProvider({ children }: PropsWithChildren) {
     if (repository) await loadCloudLibrary(repository);
   }, [loadCloudLibrary]);
 
+  const registerCatalogItem = useCallback(
+    async (item: Media) => {
+      replaceCatalog(mergeCatalogs(catalogRef.current, [item]));
+      const repository = cloudRepositoryRef.current;
+      if (!repository) return;
+      const refreshed = await repository.refreshCatalog();
+      replaceCatalog(mergeCatalogs(fallbackCatalog, refreshed, [item]));
+    },
+    [replaceCatalog],
+  );
+
   const value = useMemo(
     () => ({
       state,
+      catalog,
       dispatch,
       librarySync,
       startCloudSync,
       retryCloudSync,
+      registerCatalogItem,
     }),
-    [dispatch, librarySync, retryCloudSync, startCloudSync, state],
+    [
+      catalog,
+      dispatch,
+      librarySync,
+      registerCatalogItem,
+      retryCloudSync,
+      startCloudSync,
+      state,
+    ],
   );
   return (
     <StoreContext.Provider value={value}>{children}</StoreContext.Provider>

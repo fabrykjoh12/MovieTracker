@@ -18,6 +18,7 @@ const mediaRow: Tables<"media"> = {
   poster_path: null,
   backdrop_path: null,
   metadata: { localId: "severance" },
+  metadata_expires_at: null,
   metadata_updated_at: null,
   created_at: "2026-07-17T00:00:00.000Z",
 };

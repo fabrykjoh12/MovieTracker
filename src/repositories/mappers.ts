@@ -27,6 +27,35 @@ function optionalString(value: Json | undefined) {
   return typeof value === "string" && value.length ? value : undefined;
 }
 
+function isMedia(value: unknown): value is import("../types").Media {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<import("../types").Media>;
+  return (
+    typeof item.id === "string" &&
+    typeof item.title === "string" &&
+    (item.format === "movie" || item.format === "series") &&
+    typeof item.poster === "string" &&
+    typeof item.backdrop === "string" &&
+    typeof item.runtime === "number" &&
+    Array.isArray(item.genres) &&
+    Array.isArray(item.moods) &&
+    typeof item.synopsis === "string"
+  );
+}
+
+export function mapCatalogRows(
+  mediaRows: MediaRow[],
+  fallbackCatalog: import("../types").Media[],
+) {
+  const merged = new Map(fallbackCatalog.map((item) => [item.id, item]));
+  mediaRows.forEach((row) => {
+    const metadata = jsonObject(row.metadata);
+    const domain = metadata.domain;
+    if (isMedia(domain)) merged.set(domain.id, domain);
+  });
+  return Array.from(merged.values());
+}
+
 function queuePosition(intent: Json) {
   const value = jsonObject(intent).queuePosition;
   return typeof value === "number" && Number.isInteger(value) && value >= 0

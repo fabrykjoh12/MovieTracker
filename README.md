@@ -62,7 +62,32 @@ The Pages workflow validates this secret before installing dependencies. If the 
 
 The source mapping lives in `catalog/tmdb-seeds.json`; generated browser-safe metadata lives in `src/generated/tmdbCatalog.ts`. Missing images or provider failures retain the local fallback. The Profile page shows the required TMDB attribution whenever generated TMDB data is present.
 
-This build-time catalog is the first metadata slice. Whole-database search and adding arbitrary results still require the planned rate-limited server-side metadata proxy and database cache.
+## Whole-catalog search
+
+Movie and series search is implemented through a Cloudflare Worker in `worker/`. The Worker keeps `TMDB_READ_ACCESS_TOKEN` and `DATABASE_URL` encrypted outside the browser, applies separate search/import rate limits, caches searches at the edge, stores normalized titles in `public.media`, and keeps raw provider responses in browser-inaccessible Neon cache tables.
+
+The fourth migration must be applied before deploying the Worker:
+
+```bash
+npm run db:migrate
+npm run db:verify
+```
+
+For local Worker development, copy `worker/.dev.vars.example` to the gitignored `worker/.dev.vars`, then run:
+
+```bash
+npm run worker:dev
+```
+
+For production:
+
+1. Create a Cloudflare account and a Workers API token.
+2. Create a GitHub environment named `catalog-worker` with `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `TMDB_READ_ACCESS_TOKEN`, and `DATABASE_URL` as secrets.
+3. Run the **Deploy catalog Worker** workflow and copy its `workers.dev` URL.
+4. Add that URL as the public GitHub Actions variable `VITE_CATALOG_API_URL`.
+5. Re-run the Pages deployment. Discover will expose real search only when this public endpoint is configured.
+
+The Worker configuration is the source of truth for allowed origins and required secrets. Never place either private credential in `VITE_CATALOG_API_URL` or any other browser variable. See the official [Cloudflare Worker secrets](https://developers.cloudflare.com/workers/configuration/secrets/), [rate limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/), and [Neon serverless driver](https://neon.com/docs/serverless/serverless-driver) documentation.
 
 ## Quality checks
 
@@ -70,6 +95,7 @@ This build-time catalog is the first metadata slice. Whole-database search and a
 npm run lint
 npm run typecheck
 npm test
+npm run worker:check
 npm run build
 ```
 

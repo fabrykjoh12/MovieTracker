@@ -195,6 +195,7 @@ export type Database = {
           format: Database["public"]["Enums"]["media_format"];
           id: string;
           metadata: Json;
+          metadata_expires_at: string | null;
           metadata_updated_at: string | null;
           original_title: string | null;
           poster_path: string | null;
@@ -209,6 +210,7 @@ export type Database = {
           format: Database["public"]["Enums"]["media_format"];
           id?: string;
           metadata?: Json;
+          metadata_expires_at?: string | null;
           metadata_updated_at?: string | null;
           original_title?: string | null;
           poster_path?: string | null;
@@ -223,6 +225,7 @@ export type Database = {
           format?: Database["public"]["Enums"]["media_format"];
           id?: string;
           metadata?: Json;
+          metadata_expires_at?: string | null;
           metadata_updated_at?: string | null;
           original_title?: string | null;
           poster_path?: string | null;
@@ -232,6 +235,41 @@ export type Database = {
           tmdb_id?: number | null;
         };
         Relationships: [];
+      };
+      media_provider_ids: {
+        Row: {
+          created_at: string;
+          media_id: string;
+          provider: string;
+          provider_id: string;
+          provider_media_type: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          media_id: string;
+          provider: string;
+          provider_id: string;
+          provider_media_type: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          media_id?: string;
+          provider?: string;
+          provider_id?: string;
+          provider_media_type?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "media_provider_ids_media_id_fkey";
+            columns: ["media_id"];
+            isOneToOne: false;
+            referencedRelation: "media";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       pairwise_comparisons: {
         Row: {
@@ -325,6 +363,36 @@ export type Database = {
           is_private?: boolean;
           library_initialized_at?: string | null;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      provider_metadata_cache: {
+        Row: {
+          expires_at: string;
+          fetched_at: string;
+          locale: string;
+          payload: Json;
+          provider: string;
+          provider_id: string;
+          resource_type: string;
+        };
+        Insert: {
+          expires_at: string;
+          fetched_at?: string;
+          locale?: string;
+          payload: Json;
+          provider: string;
+          provider_id: string;
+          resource_type: string;
+        };
+        Update: {
+          expires_at?: string;
+          fetched_at?: string;
+          locale?: string;
+          payload?: Json;
+          provider?: string;
+          provider_id?: string;
+          resource_type?: string;
         };
         Relationships: [];
       };

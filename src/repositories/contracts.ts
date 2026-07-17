@@ -27,6 +27,7 @@ export interface LibrarySnapshot {
 
 export interface CloudLibrarySnapshot extends LibrarySnapshot {
   initialized: boolean;
+  catalog: Media[];
 }
 
 export interface ProfileRepository {
@@ -50,6 +51,7 @@ export interface LibrarySyncRepository extends LibraryRepository {
   load(): Promise<CloudLibrarySnapshot>;
   import(snapshot: LibrarySnapshot): Promise<CloudLibrarySnapshot>;
   persistChanges(previous: AppState, next: AppState): Promise<void>;
+  refreshCatalog(): Promise<Media[]>;
 }
 
 export interface TrackingRepository {

@@ -1,21 +1,110 @@
-import { ArrowRight, Clock3, Compass, SlidersHorizontal } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertCircle,
+  ArrowRight,
+  Check,
+  Clock3,
+  Compass,
+  Film,
+  LoaderCircle,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  Tv,
+} from "lucide-react";
 import { Link } from "react-router-dom";
-import { media } from "../data";
 import { PosterCard } from "../components/PosterCard";
+import {
+  getCatalogSearchClient,
+  isCatalogSearchConfigured,
+} from "../catalog/search";
+import type { MediaSearchResult } from "../catalog/search";
 import { recommendationReason } from "../domain";
 import { useStore } from "../store";
+import type { MediaFormat } from "../types";
+
+type SearchState = "idle" | "searching" | "ready" | "error";
 
 export function Discover() {
-  const { state, dispatch } = useStore();
-  const featured = media.find((item) => item.id === "perfect-days")!;
-  const collection = media.filter((item) =>
+  const { state, dispatch, catalog, registerCatalogItem } = useStore();
+  const [query, setQuery] = useState("");
+  const [format, setFormat] = useState<"any" | MediaFormat>("any");
+  const [searchState, setSearchState] = useState<SearchState>("idle");
+  const [results, setResults] = useState<MediaSearchResult[]>([]);
+  const [searchMessage, setSearchMessage] = useState("");
+  const [importingId, setImportingId] = useState<number>();
+  const client = useMemo(() => getCatalogSearchClient(), []);
+  const featured = catalog.find((item) => item.id === "perfect-days")!;
+  const collection = catalog.filter((item) =>
     ["aftersun", "portrait", "memories-of-murder", "past-lives"].includes(
       item.id,
     ),
   );
-  const recommendations = media.filter((item) =>
+  const recommendations = catalog.filter((item) =>
     ["decision-to-leave", "columbus", "perfect-days"].includes(item.id),
   );
+
+  useEffect(() => {
+    const normalized = query.trim();
+    if (!client || normalized.length < 2) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setSearchState("searching");
+      setSearchMessage("");
+      client
+        .search(normalized, format, controller.signal)
+        .then((response) => {
+          setResults(response.results);
+          setSearchState("ready");
+          setSearchMessage(
+            response.results.length
+              ? `${response.results.length} titles found.`
+              : `No titles found for “${normalized}”.`,
+          );
+        })
+        .catch((error: unknown) => {
+          if (error instanceof DOMException && error.name === "AbortError") {
+            return;
+          }
+          setResults([]);
+          setSearchState("error");
+          setSearchMessage(
+            error instanceof Error
+              ? error.message
+              : "Catalog search is temporarily unavailable.",
+          );
+        });
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [client, format, query]);
+
+  const addSearchResult = async (result: MediaSearchResult) => {
+    if (!client) return;
+    setImportingId(result.providerId);
+    setSearchMessage(`Preparing ${result.title}…`);
+    try {
+      const item = await client.importTitle(result);
+      await registerCatalogItem(item);
+      dispatch({ type: "add", mediaId: item.id });
+      setSearchMessage(`${item.title} was added to your library.`);
+    } catch (error) {
+      setSearchMessage(
+        error instanceof Error
+          ? error.message
+          : "This title could not be added right now.",
+      );
+    } finally {
+      setImportingId(undefined);
+    }
+  };
+
   return (
     <div className="page discover-page">
       <header className="page-title-row">
@@ -29,6 +118,155 @@ export function Discover() {
           All filters
         </button>
       </header>
+      <section
+        className="catalog-search"
+        aria-labelledby="catalog-search-title"
+      >
+        <div className="catalog-search-copy">
+          <p className="eyebrow">THE WHOLE CATALOG</p>
+          <h2 id="catalog-search-title">Find a specific story</h2>
+          <p>
+            Search movies and series, then save the complete title—not a loose
+            bookmark.
+          </p>
+        </div>
+        {isCatalogSearchConfigured ? (
+          <>
+            <div className="catalog-search-bar">
+              <label>
+                <span className="sr-only">Search movies and series</span>
+                <Search size={20} aria-hidden="true" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => {
+                    const nextQuery = event.target.value;
+                    setQuery(nextQuery);
+                    if (nextQuery.trim().length < 2) {
+                      setResults([]);
+                      setSearchState("idle");
+                      setSearchMessage("");
+                    }
+                  }}
+                  placeholder="Search by title"
+                  autoComplete="off"
+                />
+                {searchState === "searching" && (
+                  <LoaderCircle className="spin" size={18} aria-hidden="true" />
+                )}
+              </label>
+              <div className="catalog-format" aria-label="Search format">
+                {(["any", "movie", "series"] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={format === value ? "selected" : ""}
+                    onClick={() => setFormat(value)}
+                    aria-pressed={format === value}
+                  >
+                    {value === "movie" ? (
+                      <Film size={15} />
+                    ) : value === "series" ? (
+                      <Tv size={15} />
+                    ) : null}
+                    {value === "any"
+                      ? "All"
+                      : value === "movie"
+                        ? "Movies"
+                        : "Series"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p
+              className={`catalog-search-status ${searchState}`}
+              role="status"
+              aria-live="polite"
+            >
+              {searchMessage || "Type at least two characters to search."}
+            </p>
+            {results.length > 0 && (
+              <div className="catalog-results">
+                {results.map((result) => {
+                  const localId = `tmdb-${result.mediaType}-${result.providerId}`;
+                  const saved = Boolean(state.userMedia[localId]);
+                  const imported = catalog.some((item) => item.id === localId);
+                  const busy = importingId === result.providerId;
+                  return (
+                    <article key={`${result.mediaType}-${result.providerId}`}>
+                      {result.poster ? (
+                        <img
+                          src={result.poster}
+                          alt=""
+                          width="160"
+                          height="240"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div
+                          className="catalog-art-fallback"
+                          aria-hidden="true"
+                        >
+                          {result.format === "movie" ? (
+                            <Film size={28} />
+                          ) : (
+                            <Tv size={28} />
+                          )}
+                        </div>
+                      )}
+                      <div>
+                        <p>
+                          <span>{result.format}</span>
+                          <span>{result.year ?? "Date pending"}</span>
+                        </p>
+                        <h3>{result.title}</h3>
+                        {result.originalTitle && (
+                          <small>{result.originalTitle}</small>
+                        )}
+                        <p>{result.synopsis}</p>
+                      </div>
+                      {imported ? (
+                        <Link
+                          className="catalog-result-action"
+                          to={`/title/${localId}`}
+                        >
+                          <Check size={16} />
+                          {saved ? "In library" : "View title"}
+                        </Link>
+                      ) : (
+                        <button
+                          className="catalog-result-action"
+                          type="button"
+                          disabled={busy || importingId !== undefined}
+                          onClick={() => void addSearchResult(result)}
+                        >
+                          {busy ? (
+                            <LoaderCircle className="spin" size={16} />
+                          ) : (
+                            <Plus size={16} />
+                          )}
+                          {busy ? "Preparing" : "Add"}
+                        </button>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="catalog-search-unavailable" role="status">
+            <AlertCircle size={19} />
+            <div>
+              <strong>Catalog search is ready to connect.</strong>
+              <span>
+                Curated discovery still works while the secure search service is
+                being deployed.
+              </span>
+            </div>
+          </div>
+        )}
+      </section>
       <section
         className="editorial-hero"
         style={

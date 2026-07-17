@@ -9,7 +9,7 @@ import {
   Tv,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { hasTmdbCatalog, media } from "../data";
+import { hasTmdbCatalog } from "../data";
 import { formatVerdict } from "../domain";
 import { useStore } from "../store";
 
@@ -32,8 +32,10 @@ const dna = [
 ];
 
 export function Profile() {
-  const { state } = useStore();
-  const favourites = media.filter((item) =>
+  const { state, catalog } = useStore();
+  const hasTmdbArtwork =
+    hasTmdbCatalog || catalog.some((item) => item.provider?.name === "tmdb");
+  const favourites = catalog.filter((item) =>
     ["arrival", "dune-part-two", "dark", "poor-things"].includes(item.id),
   );
   return (
@@ -42,7 +44,7 @@ export function Profile() {
         className="profile-hero"
         style={
           {
-            "--profile-image": `url(${media.find((item) => item.id === "arrival")?.backdrop})`,
+            "--profile-image": `url(${catalog.find((item) => item.id === "arrival")?.backdrop})`,
           } as React.CSSProperties
         }
       >
@@ -90,7 +92,7 @@ export function Profile() {
           </Link>
         </div>
         <img
-          src={media.find((item) => item.id === "arrival")?.poster}
+          src={catalog.find((item) => item.id === "arrival")?.poster}
           alt="Arrival editorial artwork"
         />
       </section>
@@ -221,7 +223,7 @@ export function Profile() {
           <span className="cloud-medium">Ambiguous endings</span>
         </div>
       </section>
-      {hasTmdbCatalog ? (
+      {hasTmdbArtwork ? (
         <footer className="art-credit tmdb-credit">
           <a
             href="https://www.themoviedb.org"

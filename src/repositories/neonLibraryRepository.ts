@@ -7,6 +7,8 @@ import type {
   LibrarySyncRepository,
 } from "./contracts";
 import { buildCatalogIdMaps, mapLibrarySnapshot } from "./mappers";
+import { mapCatalogRows } from "./mappers";
+import { media as fallbackCatalog } from "../data";
 
 type NeonClient = NonNullable<Awaited<ReturnType<typeof getNeonClient>>>;
 type MediaRow = Tables<"media">;
@@ -69,7 +71,8 @@ export function createNeonLibraryRepository(
   const stateVersions = new Map<string, string>();
   const verdictVersions = new Map<string, string>();
 
-  const catalog = async () => {
+  const catalog = async (refresh = false) => {
+    if (refresh) catalogPromise = null;
     catalogPromise ??= (async () => {
       const result = await client.from("media").select("*");
       if (result.error) throw resultError(result.error, "Loading the catalog");
@@ -269,7 +272,12 @@ export function createNeonLibraryRepository(
           events.data ?? [],
         ),
         initialized: profile.data.library_initialized_at !== null,
+        catalog: mapCatalogRows(mediaRows, fallbackCatalog),
       };
+    },
+
+    async refreshCatalog() {
+      return mapCatalogRows(await catalog(true), fallbackCatalog);
     },
 
     async saveState(state, queuePosition) {

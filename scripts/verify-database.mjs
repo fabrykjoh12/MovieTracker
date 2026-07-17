@@ -21,8 +21,10 @@ const expectedTables = [
   "episodes",
   "friendships",
   "media",
+  "media_provider_ids",
   "pairwise_comparisons",
   "profiles",
+  "provider_metadata_cache",
   "reviews",
   "room_candidates",
   "room_participants",
@@ -117,8 +119,39 @@ try {
     );
   }
 
+  const protectedProviderGrants = await client.query(`
+    select grantee, table_name, privilege_type
+    from information_schema.role_table_grants
+    where table_schema = 'public'
+      and grantee = 'authenticated'
+      and table_name in ('media_provider_ids', 'provider_metadata_cache')
+  `);
+  if (protectedProviderGrants.rowCount) {
+    throw new Error(
+      `Provider cache tables are exposed to authenticated browsers: ${protectedProviderGrants.rows
+        .map((row) => `${row.table_name}.${row.privilege_type}`)
+        .join(", ")}.`,
+    );
+  }
+
+  const curatedProviderIds = await client.query(`
+    select count(*)::integer as count
+    from public.media_provider_ids
+    where provider = 'tmdb'
+      and media_id in (
+        select id
+        from public.media
+        where metadata ->> 'catalog' = 'development'
+      )
+  `);
+  if (curatedProviderIds.rows[0]?.count !== 14) {
+    throw new Error(
+      `Expected 14 curated TMDB provider mappings, found ${curatedProviderIds.rows[0]?.count ?? 0}.`,
+    );
+  }
+
   console.log(
-    `Verified ${expectedTables.length} RLS-protected tables, ${policies.rowCount} policies, and the library sync marker; no anonymous table grants found.`,
+    `Verified ${expectedTables.length} RLS-protected tables, ${policies.rowCount} policies, 14 curated provider mappings, and restricted provider caches; no anonymous table grants found.`,
   );
 } finally {
   await client.end();

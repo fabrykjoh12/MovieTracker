@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tables } from "../lib/database.types";
-import { mapLibrarySnapshot } from "./mappers";
+import { mapCatalogRows, mapLibrarySnapshot } from "./mappers";
 
 const mediaRow: Tables<"media"> = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -13,6 +13,7 @@ const mediaRow: Tables<"media"> = {
   poster_path: null,
   backdrop_path: null,
   metadata: { localId: "severance" },
+  metadata_expires_at: null,
   metadata_updated_at: null,
   created_at: "2026-07-17T00:00:00.000Z",
 };
@@ -34,6 +35,50 @@ const completedMedia: Tables<"media"> = {
 };
 
 describe("database mappers", () => {
+  it("hydrates provider-backed catalog titles from normalized metadata", () => {
+    const imported = {
+      id: "tmdb-movie-123",
+      title: "A Real Film",
+      year: 2026,
+      format: "movie" as const,
+      poster: "poster",
+      backdrop: "backdrop",
+      accent: "#777",
+      runtime: 112,
+      genres: ["Drama"],
+      moods: ["Drama"],
+      pace: "balanced" as const,
+      intensity: "balanced" as const,
+      adventurous: 5,
+      synopsis: "Synopsis",
+      creators: [],
+      cast: [],
+      services: [],
+      country: "Norway",
+      language: "Norwegian",
+      provider: {
+        name: "tmdb" as const,
+        id: 123,
+        mediaType: "movie" as const,
+      },
+    };
+    const row: Tables<"media"> = {
+      ...mediaRow,
+      id: "00000000-0000-4000-8000-000000000123",
+      format: "movie",
+      title: imported.title,
+      tmdb_id: 123,
+      metadata: {
+        localId: imported.id,
+        catalog: "tmdb",
+        domain: imported,
+      },
+      metadata_expires_at: "2026-07-24T00:00:00.000Z",
+    };
+
+    expect(mapCatalogRows([row], [])).toEqual([imported]);
+  });
+
   it("hydrates local domain IDs, queue order, progress, events, and Verdicts", () => {
     const snapshot = mapLibrarySnapshot(
       [mediaRow],
