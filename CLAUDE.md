@@ -20,6 +20,7 @@ Read `README.md` and `roadmap.md` before changing architecture or scope.
 - The workflow intentionally fails if either public Neon URL is missing, preventing a silent demo-mode deployment.
 - The workflow also fails before dependency installation when `TMDB_READ_ACCESS_TOKEN` is missing, preventing production from silently returning to demonstration artwork.
 - A successful production deployment was verified on 2026-07-17. Workflow run `29544020043` completed successfully, the public page returned HTTP 200, and the live bundle contained both the Neon Auth configuration and password flow.
+- Curated TMDB artwork was accepted in production in workflow run `29600061181`: all 14 mappings synced, validation and deployment passed, the live bundle contained 28 unique poster/backdrop URLs plus attribution, and sampled TMDB images returned HTTP 200.
 
 ## Stack
 
@@ -113,13 +114,12 @@ The deliberate queue is independent from library status: positioned planned and 
 
 ## Next vertical slice
 
-Activate and accept the curated TMDB artwork slice, then implement proxy-backed search without exposing provider or database credentials:
+Implement proxy-backed search without exposing provider or database credentials. The curated 14-title TMDB artwork slice is already active and accepted in production.
 
-1. Request TMDB API access and add `TMDB_READ_ACCESS_TOKEN` as a GitHub Actions secret.
-2. Re-run Pages and visually verify real posters/backdrops plus TMDB attribution.
-3. Add a rate-limited server-side search proxy and provider metadata cache.
-4. Persist provider IDs and cached metadata before arbitrary search results can enter a cloud library.
-5. Complete the still-open second-device and two-account Neon acceptance tests.
+1. Add a rate-limited server-side search proxy and provider metadata cache.
+2. Persist provider IDs and cached metadata before arbitrary search results can enter a cloud library.
+3. Integrate search results into Discover and the add-to-library flow.
+4. Complete the still-open second-device and two-account Neon acceptance tests.
 
 Add unit tests for mapping and repository behavior plus live integration tests for RLS. Keep provider metadata writes on a trusted server boundary; the browser must not receive privileged database credentials.
 
