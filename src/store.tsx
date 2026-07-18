@@ -11,7 +11,11 @@ import {
 } from "react";
 import type { Dispatch, PropsWithChildren } from "react";
 import { useAuth } from "./auth/AuthProvider";
-import { initialState, media as fallbackCatalog } from "./data";
+import {
+  emptyLibraryState,
+  initialState,
+  media as fallbackCatalog,
+} from "./data";
 import {
   completeSeason,
   markNextEpisode,
@@ -20,6 +24,8 @@ import {
   startRewatch,
   undoLastTracking,
 } from "./domain";
+import { buildAccountExport } from "./lib/accountExport";
+import type { AccountExportHeader } from "./lib/accountExport";
 import { createLocalStateRepository } from "./repositories/localStateRepository";
 import {
   createLocalCatalogRepository,
@@ -265,6 +271,8 @@ interface StoreValue {
   startCloudSync: () => Promise<void>;
   retryCloudSync: () => Promise<void>;
   registerCatalogItem: (item: Media) => Promise<void>;
+  downloadExport: () => void;
+  deleteAllData: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreValue | null>(null);
@@ -489,6 +497,70 @@ export function StoreProvider({ children }: PropsWithChildren) {
     [replaceCatalog],
   );
 
+  const downloadExport = useCallback(() => {
+    const account: AccountExportHeader = userId
+      ? { mode: "cloud", identity: { email: user?.email ?? "" } }
+      : { mode: "demo", identity: null };
+    const doc = buildAccountExport(
+      stateRef.current,
+      catalogRef.current,
+      account,
+      new Date().toISOString(),
+    );
+    const blob = new Blob([JSON.stringify(doc, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `movietracker-export-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, [user, userId]);
+
+  const deleteAllData = useCallback(async () => {
+    const empty = emptyLibraryState(initialState);
+    const repository = cloudRepositoryRef.current;
+    const cloudActive =
+      repository &&
+      (syncStatusRef.current === "synced" ||
+        syncStatusRef.current === "saving");
+
+    if (repository && cloudActive) {
+      setLibrarySync({ status: "saving" });
+      // Invalidate any in-flight mutation so its completion cannot flip status.
+      mutationVersionRef.current += 1;
+      try {
+        await mutationChainRef.current.catch(() => undefined);
+        await repository.deleteAllData();
+        replaceState(empty);
+        setLibrarySync({ status: "needs-import" });
+      } catch (error) {
+        setLibrarySync({
+          status: "error",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Your data could not be deleted.",
+        });
+        try {
+          await loadCloudLibrary(repository);
+        } catch {
+          // Keep the error state if the reload also fails.
+        }
+      }
+      return;
+    }
+
+    // Demo / signed-out: durable empty write so reload does not reseed demo data.
+    localStateRepository.save(empty);
+    replaceState(empty);
+  }, [loadCloudLibrary, replaceState, setLibrarySync]);
+
   const value = useMemo(
     () => ({
       state,
@@ -498,10 +570,14 @@ export function StoreProvider({ children }: PropsWithChildren) {
       startCloudSync,
       retryCloudSync,
       registerCatalogItem,
+      downloadExport,
+      deleteAllData,
     }),
     [
       catalog,
+      deleteAllData,
       dispatch,
+      downloadExport,
       librarySync,
       registerCatalogItem,
       retryCloudSync,

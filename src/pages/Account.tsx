@@ -42,7 +42,14 @@ export function Account() {
     resetPassword,
     signOut,
   } = useAuth();
-  const { state, librarySync, startCloudSync, retryCloudSync } = useStore();
+  const {
+    state,
+    librarySync,
+    startCloudSync,
+    retryCloudSync,
+    downloadExport,
+    deleteAllData,
+  } = useStore();
   const [resetToken] = useState(readResetToken);
   const [mode, setMode] = useState<AccountMode>(
     resetToken ? "reset-password" : "sign-in",
@@ -52,6 +59,18 @@ export function Account() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const libraryCount = Object.keys(state.userMedia).length;
+  const runDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteAllData();
+      setConfirmText("");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -425,6 +444,49 @@ export function Account() {
             </form>
           )}
         </div>
+
+        <section className="account-card account-data-controls">
+          <p className="eyebrow">YOUR DATA</p>
+          <h2>Export or delete your library</h2>
+          <p className="account-note">
+            Download a personal backup of your library, or permanently delete
+            your data from this device and account. Your sign-in is not removed.
+          </p>
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={downloadExport}
+          >
+            Export my data
+          </button>
+
+          <div className="account-danger-zone">
+            <label htmlFor="account-delete-confirm" className="account-note">
+              Type DELETE to confirm
+            </label>
+            <input
+              id="account-delete-confirm"
+              className="account-input"
+              value={confirmText}
+              onChange={(event) => setConfirmText(event.target.value)}
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              className="secondary-button danger"
+              disabled={confirmText !== "DELETE" || deleting}
+              onClick={() => void runDelete()}
+            >
+              Delete all my data
+            </button>
+            {libraryCount === 0 ? (
+              <p className="account-message" role="status">
+                Your library is empty.
+              </p>
+            ) : null}
+          </div>
+        </section>
       </section>
     </div>
   );

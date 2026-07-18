@@ -3274,6 +3274,26 @@ blockquote {
   border-left: 2px solid var(--accent);
   background: var(--bg-soft);
 }
+.account-data-controls .secondary-button {
+  margin-top: 0.75rem;
+}
+.account-danger-zone {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.secondary-button.danger {
+  border-color: color-mix(
+    in srgb,
+    var(--accent-danger, #b4413c) 60%,
+    transparent
+  );
+  color: var(--accent-danger, #b4413c);
+}
+.secondary-button.danger:disabled {
+  opacity: 0.5;
+}
 
 /* Detail */
 .detail-page {
