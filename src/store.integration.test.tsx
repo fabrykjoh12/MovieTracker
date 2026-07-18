@@ -1,18 +1,20 @@
 import "@testing-library/jest-dom/vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { initialState, media } from "./data";
 import type { LibrarySyncRepository } from "./repositories/contracts";
 import { StoreProvider, useStore } from "./store";
 
+type MockAuthStatus = "loading" | "authenticated" | "anonymous" | "demo";
+
 const auth = vi.hoisted(() => ({
-  status: "authenticated" as const,
+  status: "authenticated" as MockAuthStatus,
   user: {
     id: "account-a",
     email: "account-a@example.com",
     name: "Account A",
-  },
+  } as { id: string; email: string; name: string } | null,
 }));
 
 vi.mock("./auth/AuthProvider", () => ({
@@ -197,6 +199,56 @@ describe("real store export and cloud deletion", () => {
     expect(screen.getByLabelText("Library size")).toHaveTextContent("0");
   });
 
+  it("surfaces the cloud error and keeps the real state when delete fails", async () => {
+    repository.deleteAllData.mockRejectedValueOnce(
+      new Error("Delete failed on the server."),
+    );
+    const user = userEvent.setup();
+
+    render(
+      <StoreProvider>
+        <StoreProbe />
+      </StoreProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Cloud status")).toHaveTextContent("synced");
+    });
+
+    await user.click(screen.getByRole("button", { name: "Delete all" }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Cloud status")).toHaveTextContent("error");
+    });
+    expect(screen.getByLabelText("Cloud message")).toHaveTextContent(
+      "Delete failed on the server.",
+    );
+    // The reload restored the real library; a failed delete must not read as empty.
+    expect(screen.getByLabelText("Library size")).not.toHaveTextContent("0");
+    expect(repository.deleteAllData).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes a signed-in error-state delete through the cloud path, not a local wipe", async () => {
+    repository.load.mockRejectedValueOnce(new Error("load failed"));
+    const user = userEvent.setup();
+
+    render(
+      <StoreProvider>
+        <StoreProbe />
+      </StoreProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Cloud status")).toHaveTextContent("error");
+    });
+
+    await user.click(screen.getByRole("button", { name: "Delete all" }));
+
+    await waitFor(() => {
+      expect(repository.deleteAllData).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("downloads a JSON export as a Blob", async () => {
     const originalCreateObjectURL = URL.createObjectURL;
     const originalRevokeObjectURL = URL.revokeObjectURL;
@@ -233,5 +285,44 @@ describe("real store export and cloud deletion", () => {
       URL.revokeObjectURL = originalRevokeObjectURL;
       clickSpy.mockRestore();
     }
+  });
+});
+
+describe("demo/signed-out deletion", () => {
+  afterEach(() => {
+    auth.status = "authenticated";
+    auth.user = {
+      id: "account-a",
+      email: "account-a@example.com",
+      name: "Account A",
+    };
+  });
+
+  it("empties the library locally when there is no cloud repository", async () => {
+    vi.clearAllMocks();
+    auth.status = "anonymous";
+    auth.user = null;
+    const user = userEvent.setup();
+
+    render(
+      <StoreProvider>
+        <StoreProbe />
+      </StoreProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Cloud status")).toHaveTextContent(
+        "browser",
+      );
+    });
+    expect(screen.getByLabelText("Library size")).not.toHaveTextContent("0");
+
+    await user.click(screen.getByRole("button", { name: "Delete all" }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Library size")).toHaveTextContent("0");
+    });
+    // Demo/signed-out has no cloud repository at all; the wipe must stay local.
+    expect(repository.deleteAllData).not.toHaveBeenCalled();
   });
 });

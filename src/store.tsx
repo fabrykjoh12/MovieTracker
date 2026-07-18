@@ -525,21 +525,30 @@ export function StoreProvider({ children }: PropsWithChildren) {
   const deleteAllData = useCallback(async () => {
     const empty = emptyLibraryState(initialState);
     const repository = cloudRepositoryRef.current;
-    const cloudActive =
-      repository &&
-      (syncStatusRef.current === "synced" ||
-        syncStatusRef.current === "saving");
+    // A signed-in account with any initialized/attempted cloud state may hold
+    // cloud rows; only an uninitialized cloud (needs-import) or a signed-out
+    // browser session has nothing in Neon to delete.
+    const useCloud = !!repository && syncStatusRef.current !== "needs-import";
 
-    if (repository && cloudActive) {
+    if (repository && useCloud) {
       setLibrarySync({ status: "saving" });
       // Invalidate any in-flight mutation so its completion cannot flip status.
       mutationVersionRef.current += 1;
+      // NOTE: a library mutation dispatched during this in-flight cloud
+      // delete is not guarded against interleaving; the Account page exposes
+      // no such mutation today, so this is low-reachability. Revisit if
+      // delete ever becomes reachable alongside library edits.
       try {
         await mutationChainRef.current.catch(() => undefined);
         await repository.deleteAllData();
         replaceState(empty);
         setLibrarySync({ status: "needs-import" });
       } catch (error) {
+        try {
+          await loadCloudLibrary(repository);
+        } catch {
+          // Keep going; we still surface the error below.
+        }
         setLibrarySync({
           status: "error",
           message:
@@ -547,16 +556,12 @@ export function StoreProvider({ children }: PropsWithChildren) {
               ? error.message
               : "Your data could not be deleted.",
         });
-        try {
-          await loadCloudLibrary(repository);
-        } catch {
-          // Keep the error state if the reload also fails.
-        }
       }
       return;
     }
 
-    // Demo / signed-out: durable empty write so reload does not reseed demo data.
+    // Demo / signed-out / uninitialized-cloud: durable empty write so reload
+    // does not reseed demo data.
     localStateRepository.save(empty);
     replaceState(empty);
   }, [loadCloudLibrary, replaceState, setLibrarySync]);

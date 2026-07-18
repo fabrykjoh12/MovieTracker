@@ -66,6 +66,10 @@ export function buildAccountExport(
       ? { title: item.title, year: item.year, type: item.format }
       : {};
   };
+  const eventTitle = (mediaId: string) => {
+    const item = byId.get(mediaId);
+    return item ? { title: item.title } : {};
+  };
 
   const library = Object.values(state.userMedia).map((entry) => {
     const index = state.queue.indexOf(entry.mediaId);
@@ -84,7 +88,7 @@ export function buildAccountExport(
   const watchEvents = state.events.map((event) => ({
     id: event.id,
     mediaId: event.mediaId,
-    ...titleFields(event.mediaId),
+    ...eventTitle(event.mediaId),
     type: event.type,
     watchedAt: event.watchedAt,
     ...(event.season === undefined ? {} : { season: event.season }),
