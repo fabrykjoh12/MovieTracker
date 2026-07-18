@@ -429,6 +429,37 @@ export function createNeonLibraryRepository(
         if (!nextEvents.has(event.id)) await removeEvent(event);
       }
     },
+
+    async deleteAllData() {
+      const ownedByUser = [
+        "watch_events",
+        "verdicts",
+        "pairwise_comparisons",
+        "user_media_states",
+      ] as const;
+      for (const table of ownedByUser) {
+        const result = await client.from(table).delete().eq("user_id", userId);
+        if (result.error) {
+          throw resultError(result.error, `Deleting ${table}`);
+        }
+      }
+      const shelves = await client
+        .from("shelves")
+        .delete()
+        .eq("owner_id", userId);
+      if (shelves.error) {
+        throw resultError(shelves.error, "Deleting shelves");
+      }
+      const profile = await client
+        .from("profiles")
+        .update({ library_initialized_at: null })
+        .eq("id", userId);
+      if (profile.error) {
+        throw resultError(profile.error, "Resetting the library sync marker");
+      }
+      stateVersions.clear();
+      verdictVersions.clear();
+    },
   };
 
   return repository;
