@@ -171,7 +171,7 @@ Five to ten invited testers can follow one another, react, and use Watch Togethe
 - [ ] Configure database backups and complete a restoration exercise.
 - [ ] Add structured logs, error reporting, and failed-mutation monitoring.
 - [ ] Monitor metadata-provider health and quotas.
-- [ ] Add account export and deletion.
+- [x] Add account export (self-describing JSON) and data-only deletion in both demo and cloud modes. Full Auth-identity erasure remains a server-side follow-up.
 - [ ] Write privacy, terms, retention, and acceptable-use policies.
 - [ ] Add abuse prevention for invitations and social writes.
 - [ ] Create operational and incident-response runbooks.
