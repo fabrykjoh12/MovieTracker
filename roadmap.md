@@ -143,6 +143,14 @@ An authenticated user can find a real movie or series, inspect its actual season
 - [ ] Add loading, error, offline, expired-session, and rollback states.
 - [ ] Add import and export for personal backup.
 
+### Interface and design system
+
+- [x] Add reusable layout primitives — Poster (with skeleton and empty states so missing artwork never spills raw alt text), SectionHeader, and MediaCard — plus density tokens.
+- [x] Redesign Home into a calmer one-hero layout with quiet section headers and a consolidated right rail, presentation-only and behavior-preserving.
+- [ ] Apply the primitives to Discover and Library, and reduce Library's overlapping view modes.
+- [ ] Rebuild mobile navigation as a dedicated bottom bar.
+- [ ] Remove the now-unused legacy Home CSS left behind by the redesign.
+
 ### Phase 3 exit gate
 
 A tester can use MovieTracker for seven consecutive days on two devices without losing data or needing another tracking application.
