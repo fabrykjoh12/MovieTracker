@@ -4906,7 +4906,7 @@ blockquote {
   color: var(--muted);
   font-weight: 600;
 }
-.section-title {
+.section-header .section-title {
   font-family: var(--serif);
   font-size: 24px;
   font-weight: 400;
@@ -4969,4 +4969,97 @@ blockquote {
 }
 .media-card-footer {
   padding: 0 12px 12px;
+}
+
+/* Home calm layout */
+.home-zone {
+  display: grid;
+  grid-template-columns: 1fr var(--rail-width);
+  gap: var(--space-section);
+  margin-top: var(--space-section);
+}
+.home-primary .tonight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.card-action:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.home-rail {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  align-self: start;
+}
+.rail-agenda article {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+.rail-agenda article:first-child {
+  border-top: 0;
+}
+.rail-agenda time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 28px;
+}
+.rail-agenda time strong {
+  font-family: var(--serif);
+  font-size: 20px;
+  color: var(--text-soft);
+}
+.rail-agenda time span {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.rail-agenda article > div {
+  flex: 1;
+}
+.rail-agenda h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.rail-agenda p {
+  color: var(--muted);
+  font-size: 11px;
+}
+.rail-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 16px 0;
+}
+.rail-subhead {
+  margin-bottom: 12px;
+}
+@media (max-width: 900px) {
+  .home-zone {
+    grid-template-columns: 1fr;
+  }
+  .home-primary .tonight-grid {
+    grid-template-columns: 1fr;
+  }
 }
