@@ -2253,49 +2253,51 @@ blockquote {
   }
 }
 .editorial-hero {
-  min-height: 480px;
+  min-height: 320px;
   position: relative;
   display: flex;
   align-items: flex-end;
-  margin-bottom: 72px;
+  margin: var(--space-section) 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
   background-image:
-    linear-gradient(90deg, rgba(11, 11, 9, 0.9), rgba(11, 11, 9, 0.22)),
+    linear-gradient(
+      105deg,
+      rgba(11, 11, 9, 0.92),
+      rgba(11, 11, 9, 0.45) 62%,
+      rgba(42, 39, 33, 0.35)
+    ),
     var(--editorial-image);
   background-size: cover;
   background-position: center;
+  background-color: var(--surface-warm);
   box-shadow: var(--shadow);
 }
 .editorial-copy {
-  max-width: 610px;
-  padding: 50px;
+  max-width: 560px;
+  padding: 34px 40px;
   color: #f5f0e7;
 }
 .editorial-copy h2 {
-  margin-bottom: 12px;
-  font-size: clamp(4rem, 7vw, 7rem);
+  margin-bottom: 10px;
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  line-height: 1;
 }
 .editorial-copy > p:not(.eyebrow) {
-  max-width: 470px;
+  max-width: 440px;
   color: #cbc4b9;
   line-height: 1.55;
 }
+.discover-section {
+  margin-bottom: var(--space-section);
+}
 .three-up {
-  grid-template-columns: repeat(3, 1fr);
-  margin-bottom: 72px;
-}
-.three-up .poster-card {
   display: grid;
-  grid-template-columns: 35% 1fr;
-  gap: 0 18px;
-}
-.three-up .poster-frame {
-  grid-row: span 2;
-}
-.three-up .card-reason {
-  align-self: end;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
 }
 .collection-section {
-  margin-bottom: 72px;
+  margin-bottom: var(--space-section);
 }
 .collection-ribbon {
   display: grid;
@@ -2337,9 +2339,10 @@ blockquote {
   gap: 18px;
 }
 .discovery-paths article {
-  min-height: 240px;
-  padding: 30px;
+  min-height: 170px;
+  padding: 22px 24px;
   border: 1px solid var(--line);
+  border-radius: var(--radius-md);
   background: var(--surface);
 }
 .discovery-paths article > svg {
@@ -2347,9 +2350,9 @@ blockquote {
   color: var(--accent-soft);
 }
 .discovery-paths h3 {
-  margin: 23px 0 8px;
+  margin: 16px 0 6px;
   font-family: var(--serif);
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 400;
 }
 .discovery-paths p:not(.eyebrow) {
