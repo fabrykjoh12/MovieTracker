@@ -139,7 +139,12 @@ An authenticated user can find a real movie or series, inspect its actual season
 
 ### Product completeness
 
-- [ ] Implement or remove every inactive control.
+- [x] Every previously inactive control (Discover filters, Home reminders,
+      Library shelf/pick-for-me, Friends invites/constraints/matches/spoiler
+      reveal/taste compare, Profile share/DNA-info/why-this/year-in-review/
+      ranking, Media Detail note/reaction) is now honestly disabled with a
+      "coming soon" cue instead of silently doing nothing. None are wired to
+      real behavior yet — that remains future work per-feature.
 - [ ] Add loading, error, offline, expired-session, and rollback states.
 - [ ] Add import and export for personal backup.
 

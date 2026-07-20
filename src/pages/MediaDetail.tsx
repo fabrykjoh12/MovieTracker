@@ -278,7 +278,13 @@ export function MediaDetail() {
               {userState.intent?.recommendedBy && (
                 <span>Recommended by {userState.intent.recommendedBy}</span>
               )}
-              <button type="button">Edit note</button>
+              <button
+                type="button"
+                disabled
+                title="Editing notes is coming soon"
+              >
+                Edit note
+              </button>
             </div>
           </section>
         )}
@@ -358,7 +364,12 @@ export function MediaDetail() {
                       </span>
                     </div>
                     {watched && (
-                      <button type="button" className="reaction-add">
+                      <button
+                        type="button"
+                        className="reaction-add"
+                        disabled
+                        title="Adding reactions is coming soon"
+                      >
                         <Plus size={15} />
                         Reaction
                       </button>

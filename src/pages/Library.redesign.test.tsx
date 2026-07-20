@@ -57,4 +57,10 @@ describe("Library redesign", () => {
       expect.objectContaining({ type: "mark-next" }),
     );
   });
+
+  it("honestly disables the not-yet-built shelf and pick-for-me controls", () => {
+    renderLibrary();
+    expect(screen.getByRole("button", { name: "New shelf" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Pick for me" })).toBeDisabled();
+  });
 });

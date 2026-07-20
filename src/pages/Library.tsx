@@ -69,7 +69,12 @@ export function Library() {
             deliberately up next
           </p>
         </div>
-        <button className="primary-button" type="button">
+        <button
+          className="primary-button"
+          type="button"
+          disabled
+          title="Creating shelves is coming soon"
+        >
           <Plus size={18} />
           New shelf
         </button>
@@ -90,7 +95,7 @@ export function Library() {
           <span>
             <strong>{stale}</strong> Ready to revisit
           </span>
-          <button type="button">
+          <button type="button" disabled title="Coming soon">
             <Sparkles size={16} />
             Pick for me
           </button>

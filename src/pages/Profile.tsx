@@ -56,7 +56,12 @@ export function Profile() {
             <p>Oslo · watching thoughtfully since 2018</p>
           </div>
         </div>
-        <button className="secondary-button" type="button">
+        <button
+          className="secondary-button"
+          type="button"
+          disabled
+          title="Coming soon"
+        >
           <Share2 size={17} />
           Share profile
         </button>
@@ -109,7 +114,12 @@ export function Profile() {
                 spectacle by itself.
               </p>
             </div>
-            <button type="button" aria-label="See how taste DNA works">
+            <button
+              type="button"
+              aria-label="See how taste DNA works"
+              title="Coming soon"
+              disabled
+            >
               <Eye size={18} />
             </button>
           </header>
@@ -129,7 +139,7 @@ export function Profile() {
           </div>
           <footer>
             <span>Built from 143 confident verdicts</span>
-            <button type="button">
+            <button type="button" disabled title="Coming soon">
               Why we think this <ArrowRight size={15} />
             </button>
           </footer>
@@ -165,7 +175,7 @@ export function Profile() {
               </span>
             </li>
           </ul>
-          <button type="button">
+          <button type="button" disabled title="Coming soon">
             Open year in review <ArrowRight size={15} />
           </button>
         </aside>
@@ -177,7 +187,9 @@ export function Profile() {
             <h2>Stories that define your taste</h2>
             <p>Ordered by your comparisons, never by a public average.</p>
           </div>
-          <button type="button">Edit ranking</button>
+          <button type="button" disabled title="Coming soon">
+            Edit ranking
+          </button>
         </div>
         <div>
           {favourites.map((item, index) => (

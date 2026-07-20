@@ -50,4 +50,11 @@ describe("Home", () => {
     fireEvent.click(actions[0]!);
     expect(dispatch).toHaveBeenCalled();
   });
+
+  it("honestly disables the not-yet-built reminder control", () => {
+    renderHome();
+    expect(
+      screen.getByRole("button", { name: "Set reminder for Severance" }),
+    ).toBeDisabled();
+  });
 });

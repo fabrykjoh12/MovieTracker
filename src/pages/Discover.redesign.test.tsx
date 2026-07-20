@@ -73,4 +73,9 @@ describe("Discover redesign", () => {
       mediaId: "perfect-days",
     });
   });
+
+  it("honestly disables the not-yet-built filters control", () => {
+    renderDiscover();
+    expect(screen.getByRole("button", { name: "All filters" })).toBeDisabled();
+  });
 });

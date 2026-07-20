@@ -181,7 +181,12 @@ export function Home() {
                 <h3>Severance</h3>
                 <p>“Woe’s Hollow” · Apple TV+</p>
               </div>
-              <button type="button" aria-label="Set reminder for Severance">
+              <button
+                type="button"
+                aria-label="Set reminder for Severance"
+                title="Reminders are coming soon"
+                disabled
+              >
                 <CalendarDays size={16} />
               </button>
             </article>

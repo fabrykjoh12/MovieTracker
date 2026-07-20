@@ -21,7 +21,12 @@ export function Friends() {
           <h1>Friends</h1>
           <p>Recommendations, shared progress and plans that matter to you.</p>
         </div>
-        <button className="secondary-button" type="button">
+        <button
+          className="secondary-button"
+          type="button"
+          disabled
+          title="Invites are coming soon"
+        >
           <Plus size={18} />
           Invite a friend
         </button>
@@ -51,7 +56,9 @@ export function Friends() {
           <span>≤ {room.constraints.maxRuntime} min</span>
           <span>{room.constraints.mood}</span>
           <span>{room.constraints.services.join(" + ")}</span>
-          <button type="button">Edit constraints</button>
+          <button type="button" disabled title="Coming soon">
+            Edit constraints
+          </button>
         </div>
         <div className="candidate-list">
           {room.candidates.map((candidate, index) => {
@@ -112,7 +119,8 @@ export function Friends() {
           <button
             className="primary-button"
             type="button"
-            disabled={room.candidates.some((candidate) => !candidate.votes.You)}
+            disabled
+            title="Revealing matches is coming soon"
           >
             Reveal matches <ChevronRight size={17} />
           </button>
@@ -151,7 +159,12 @@ export function Friends() {
                 <LockKeyhole size={13} />
                 Reaction hidden until you reach this episode
               </small>
-              <button className="spoiler-button" type="button">
+              <button
+                className="spoiler-button"
+                type="button"
+                disabled
+                title="Coming soon"
+              >
                 Reveal anyway
               </button>
               <span>Yesterday</span>
@@ -196,7 +209,7 @@ export function Friends() {
               Story
             </span>
           </div>
-          <button type="button">
+          <button type="button" disabled title="Coming soon">
             Compare taste maps <ChevronRight size={16} />
           </button>
         </aside>
