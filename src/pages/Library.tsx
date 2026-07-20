@@ -9,6 +9,7 @@ import {
   Grid2X2,
   Heart,
   ListOrdered,
+  Play,
   Plus,
   Rows3,
   Search,
@@ -16,9 +17,11 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatVerdict, statusLabel } from "../domain";
-import { PosterCard } from "../components/PosterCard";
+import { MediaCard } from "../components/MediaCard";
+import { Poster } from "../components/Poster";
+import { SectionHeader } from "../components/SectionHeader";
 import { useStore } from "../store";
-import type { LibraryStatus, Media } from "../types";
+import type { LibraryStatus, Media, UserMediaState } from "../types";
 
 type View = "shelves" | "gallery" | "queue" | "timeline" | "calendar" | "taste";
 const demoNow = Date.parse("2026-07-16T20:00:00.000Z");
@@ -30,6 +33,12 @@ const views: { id: View; label: string; icon: typeof Rows3 }[] = [
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "taste", label: "Taste Map", icon: Sparkles },
 ];
+
+function trackLabel(item: Media, userState?: UserMediaState) {
+  if (!userState) return "Add to library";
+  if (item.format === "series") return "Next episode";
+  return userState.status === "completed" ? "Watched" : "Log watched";
+}
 
 export function Library() {
   const { state, dispatch, catalog } = useStore();
@@ -72,12 +81,11 @@ export function Library() {
       </header>
 
       <section className="library-health" aria-label="Library health">
-        <div>
+        <div className="health-lead">
           <span className="health-score">82</span>
           <div>
             <p className="eyebrow">WATCHLIST HEALTH</p>
             <strong>Focused and useful</strong>
-            <span>Your queue is short enough to choose from.</span>
           </div>
         </div>
         <div className="health-items">
@@ -164,45 +172,36 @@ function ShelvesView() {
   const { state, catalog } = useStore();
   return (
     <section className="shelves-view" aria-label="Your shelves">
-      {state.shelves.map((shelf, index) => {
+      {state.shelves.map((shelf) => {
         const featured = catalog.find((item) => item.id === shelf.featuredId);
         const shelfMedia = shelf.mediaIds
           .map((id) => catalog.find((item) => item.id === id))
-          .filter(Boolean);
+          .filter((item): item is Media => Boolean(item));
         return (
-          <article
-            className={`shelf-card shelf-${index + 1}`}
-            key={shelf.id}
-            style={
-              {
-                "--shelf-tone": shelf.atmosphere,
-                "--shelf-image": `url(${featured?.backdrop})`,
-              } as React.CSSProperties
-            }
-          >
-            <div className="shelf-copy">
+          <article className="shelf-card" key={shelf.id}>
+            <div className="shelf-card-head">
               <span className="shelf-visibility">{shelf.visibility}</span>
-              <h2>{shelf.title}</h2>
-              <p>{shelf.description}</p>
-              <Link to={`/title/${featured?.id}`}>
-                Open shelf <ChevronRight size={16} />
-              </Link>
+              <span className="shelf-count">
+                {shelf.mediaIds.length} stories
+              </span>
             </div>
-            <div className="shelf-posters">
-              {shelfMedia.map(
-                (item, itemIndex) =>
-                  item && (
-                    <Link
-                      key={item.id}
-                      to={`/title/${item.id}`}
-                      style={{ "--i": itemIndex } as React.CSSProperties}
-                    >
-                      <img src={item.poster} alt={item.title} />
-                    </Link>
-                  ),
-              )}
+            <h3 className="shelf-title">{shelf.title}</h3>
+            <p className="shelf-desc">{shelf.description}</p>
+            <div className="shelf-strip">
+              {shelfMedia.slice(0, 5).map((item) => (
+                <Link
+                  key={item.id}
+                  to={`/title/${item.id}`}
+                  className="shelf-strip-item"
+                  aria-label={item.title}
+                >
+                  <Poster src={item.poster} alt={`${item.title} poster`} />
+                </Link>
+              ))}
             </div>
-            <span className="shelf-count">{shelf.mediaIds.length} stories</span>
+            <Link className="shelf-open" to={`/title/${featured?.id}`}>
+              Open shelf <ChevronRight size={16} />
+            </Link>
           </article>
         );
       })}
@@ -244,15 +243,39 @@ function GalleryView({
         ))}
       </div>
       {items.length ? (
-        <div className="poster-grid gallery-grid">
-          {items.map((item) => (
-            <PosterCard
-              key={item.id}
-              item={item}
-              userState={state.userMedia[item.id]}
-              onTrack={() => dispatch({ type: "mark-next", mediaId: item.id })}
-            />
-          ))}
+        <div className="gallery-grid">
+          {items.map((item) => {
+            const userState = state.userMedia[item.id];
+            return (
+              <MediaCard
+                key={item.id}
+                title={item.title}
+                to={`/title/${item.id}`}
+                poster={item.poster}
+                pill={userState ? statusLabel(userState.status) : undefined}
+                meta={`${item.year} · ${
+                  item.format === "movie"
+                    ? `${item.runtime} min`
+                    : `${item.seasons?.length ?? 0} seasons`
+                }`}
+                footer={
+                  userState ? (
+                    <button
+                      type="button"
+                      className="card-action"
+                      onClick={() =>
+                        dispatch({ type: "mark-next", mediaId: item.id })
+                      }
+                      aria-label={`Track ${item.title}`}
+                    >
+                      <Play size={15} />
+                      {trackLabel(item, userState)}
+                    </button>
+                  ) : undefined
+                }
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="empty-state">
@@ -269,16 +292,7 @@ function QueueView() {
   const { state, dispatch, catalog } = useStore();
   return (
     <section className="queue-view">
-      <header>
-        <div>
-          <p className="eyebrow">DELIBERATE, NOT ENDLESS</p>
-          <h2>Your next four</h2>
-          <p>
-            Move a title when your mood changes. The top spot is tonight’s
-            default.
-          </p>
-        </div>
-      </header>
+      <SectionHeader label="DELIBERATE, NOT ENDLESS" title="Your next four" />
       <ol>
         {state.queue.map((id, index) => {
           const item = catalog.find((entry) => entry.id === id);
@@ -288,7 +302,9 @@ function QueueView() {
               <span className="queue-number">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <img src={item.poster} alt="" />
+              <div className="queue-art">
+                <Poster src={item.poster} alt={`${item.title} poster`} />
+              </div>
               <div>
                 <h3>
                   <Link to={`/title/${item.id}`}>{item.title}</Link>
@@ -341,10 +357,7 @@ function TimelineView() {
   const { state, catalog } = useStore();
   return (
     <section className="timeline-view">
-      <header>
-        <p className="eyebrow">VIEWING DIARY</p>
-        <h2>Recent chapters</h2>
-      </header>
+      <SectionHeader label="VIEWING DIARY" title="Recent chapters" />
       {state.events
         .slice()
         .reverse()
@@ -360,7 +373,9 @@ function TimelineView() {
                   }).format(new Date(event.watchedAt))}
                 </time>
                 <i />
-                <img src={item.poster} alt="" />
+                <div className="timeline-art">
+                  <Poster src={item.poster} alt={`${item.title} poster`} />
+                </div>
                 <div>
                   <h3>{item.title}</h3>
                   <p>
@@ -392,12 +407,7 @@ function CalendarView() {
   }));
   return (
     <section className="calendar-view">
-      <header>
-        <div>
-          <p className="eyebrow">JULY 2026</p>
-          <h2>Past watches & future stories</h2>
-        </div>
-      </header>
+      <SectionHeader label="JULY 2026" title="Past watches & future stories" />
       <div className="calendar-grid">
         {dates.map((date, index) => (
           <div className={index === 3 ? "today" : ""} key={date.day}>
@@ -434,14 +444,10 @@ function TasteView() {
   const groups = ["all-timer", "loved", "liked", "mixed"] as const;
   return (
     <section className="taste-view">
-      <header>
-        <p className="eyebrow">PERSONAL ORDER, NOT PUBLIC SCORE</p>
-        <h2>Your taste map</h2>
-        <p>
-          Titles are grouped by your emotional verdict, then ordered only as
-          precisely as your comparisons support.
-        </p>
-      </header>
+      <SectionHeader
+        label="PERSONAL ORDER, NOT PUBLIC SCORE"
+        title="Your taste map"
+      />
       {groups.map((kind) => {
         const items = catalog.filter(
           (item) => state.userMedia[item.id]?.verdict?.kind === kind,
