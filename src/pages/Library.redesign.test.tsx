@@ -48,7 +48,9 @@ describe("Library redesign", () => {
   it("switches to the Gallery view and a track action dispatches mark-next", () => {
     renderLibrary();
     fireEvent.click(screen.getByRole("tab", { name: "Gallery" }));
-    const track = screen.getAllByRole("button", { name: /^track /i });
+    const track = screen.getAllByRole("button", {
+      name: /(next episode|log watched|watched) —/i,
+    });
     expect(track.length).toBeGreaterThan(0);
     fireEvent.click(track[0]!);
     expect(dispatch).toHaveBeenCalledWith(

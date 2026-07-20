@@ -20,8 +20,9 @@ import { formatVerdict, statusLabel } from "../domain";
 import { MediaCard } from "../components/MediaCard";
 import { Poster } from "../components/Poster";
 import { SectionHeader } from "../components/SectionHeader";
+import { mediaActionLabel } from "../lib/mediaActionLabel";
 import { useStore } from "../store";
-import type { LibraryStatus, Media, UserMediaState } from "../types";
+import type { LibraryStatus, Media } from "../types";
 
 type View = "shelves" | "gallery" | "queue" | "timeline" | "calendar" | "taste";
 const demoNow = Date.parse("2026-07-16T20:00:00.000Z");
@@ -33,12 +34,6 @@ const views: { id: View; label: string; icon: typeof Rows3 }[] = [
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "taste", label: "Taste Map", icon: Sparkles },
 ];
-
-function trackLabel(item: Media, userState?: UserMediaState) {
-  if (!userState) return "Add to library";
-  if (item.format === "series") return "Next episode";
-  return userState.status === "completed" ? "Watched" : "Log watched";
-}
 
 export function Library() {
   const { state, dispatch, catalog } = useStore();
@@ -266,10 +261,10 @@ function GalleryView({
                       onClick={() =>
                         dispatch({ type: "mark-next", mediaId: item.id })
                       }
-                      aria-label={`Track ${item.title}`}
+                      aria-label={`${mediaActionLabel(item, userState)} — ${item.title}`}
                     >
                       <Play size={15} />
-                      {trackLabel(item, userState)}
+                      {mediaActionLabel(item, userState)}
                     </button>
                   ) : undefined
                 }

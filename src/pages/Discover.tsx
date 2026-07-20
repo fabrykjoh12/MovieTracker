@@ -23,14 +23,8 @@ import {
   catalogResultLocalId,
   useCatalogSearch,
 } from "../hooks/useCatalogSearch";
-import type { Media, UserMediaState } from "../types";
+import { mediaActionLabel } from "../lib/mediaActionLabel";
 import { useStore } from "../store";
-
-function pickActionLabel(item: Media, userState?: UserMediaState) {
-  if (!userState) return "Add to library";
-  if (item.format === "series") return "Next episode";
-  return userState.status === "completed" ? "Watched" : "Log watched";
-}
 
 export function Discover() {
   const { state, dispatch, catalog } = useStore();
@@ -272,18 +266,14 @@ export function Discover() {
                     type="button"
                     className="card-action"
                     onClick={onClick}
-                    aria-label={
-                      userState
-                        ? `Track ${item.title}`
-                        : `Add ${item.title} to library`
-                    }
+                    aria-label={`${mediaActionLabel(item, userState)} — ${item.title}`}
                   >
                     {userState ? (
                       <Play size={15} />
                     ) : (
                       <BookmarkPlus size={15} />
                     )}
-                    {pickActionLabel(item, userState)}
+                    {mediaActionLabel(item, userState)}
                   </button>
                 }
               />

@@ -28,7 +28,8 @@ export function MediaCard({
         <Link
           className="media-card-poster"
           to={to}
-          aria-label={`View ${title}`}
+          tabIndex={-1}
+          aria-hidden="true"
         >
           {posterEl}
         </Link>

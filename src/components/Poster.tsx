@@ -8,8 +8,12 @@ interface PosterProps {
 }
 
 export function Poster({ src, alt, ratio = "2/3", pill }: PosterProps) {
-  const [loaded, setLoaded] = useState(false);
+  // Track which src has loaded (not just a boolean) so a changed src re-shows
+  // the skeleton, and seed from `complete` so already-cached images — whose
+  // `onLoad` may never fire — are not stuck invisible at opacity 0.
+  const [loadedSrc, setLoadedSrc] = useState<string | undefined>(undefined);
   const ratioClass = ratio === "16/9" ? "poster-16x9" : "poster-2x3";
+  const loaded = Boolean(src) && loadedSrc === src;
   return (
     <div className={`poster ${ratioClass}`}>
       {src ? (
@@ -18,7 +22,10 @@ export function Poster({ src, alt, ratio = "2/3", pill }: PosterProps) {
           src={src}
           alt={alt}
           loading="lazy"
-          onLoad={() => setLoaded(true)}
+          ref={(node) => {
+            if (node?.complete && node.naturalWidth > 0) setLoadedSrc(src);
+          }}
+          onLoad={() => setLoadedSrc(src)}
         />
       ) : (
         <div className="poster-empty" role="img" aria-label={alt} />

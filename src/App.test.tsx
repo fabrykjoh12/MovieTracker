@@ -26,11 +26,11 @@ describe("critical product flows", () => {
 
     await user.click(
       screen.getByRole("button", {
-        name: "Add Decision to Leave to library",
+        name: "Add to library — Decision to Leave",
       }),
     );
     expect(
-      screen.getByRole("button", { name: "Track Decision to Leave" }),
+      screen.getByRole("button", { name: "Log watched — Decision to Leave" }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "Decision to Leave" }));

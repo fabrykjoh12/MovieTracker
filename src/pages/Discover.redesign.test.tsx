@@ -56,7 +56,7 @@ describe("Discover redesign", () => {
   it("dispatches when a recommendation card action is used (behavior preserved)", () => {
     renderDiscover();
     const actions = screen.getAllByRole("button", {
-      name: /^(add|track) /i,
+      name: /(add to library|log watched|next episode|watched) —/i,
     });
     expect(actions.length).toBeGreaterThan(0);
     fireEvent.click(actions[0]!);

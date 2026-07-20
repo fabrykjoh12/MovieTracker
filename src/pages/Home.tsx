@@ -19,14 +19,8 @@ import {
 import { MediaCard } from "../components/MediaCard";
 import { SectionHeader } from "../components/SectionHeader";
 import { TonightControls } from "../components/TonightControls";
-import type { Media, UserMediaState } from "../types";
+import { mediaActionLabel } from "../lib/mediaActionLabel";
 import { useStore } from "../store";
-
-function pickActionLabel(item: Media, userState?: UserMediaState) {
-  if (!userState) return "Add to library";
-  if (item.format === "series") return "Next episode";
-  return userState.status === "completed" ? "Watched" : "Log watched";
-}
 
 export function Home() {
   const { state, dispatch, catalog } = useStore();
@@ -152,14 +146,14 @@ export function Home() {
                         type="button"
                         className="card-action"
                         onClick={onClick}
-                        aria-label={`${pickActionLabel(item, userState)} — ${item.title}`}
+                        aria-label={`${mediaActionLabel(item, userState)} — ${item.title}`}
                       >
                         {userState ? (
                           <Play size={15} />
                         ) : (
                           <BookmarkPlus size={15} />
                         )}
-                        {pickActionLabel(item, userState)}
+                        {mediaActionLabel(item, userState)}
                       </button>
                     }
                   />
