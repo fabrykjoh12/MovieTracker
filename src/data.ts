@@ -711,6 +711,10 @@ export const initialState: AppState = {
   },
 };
 
+export function emptyLibraryState(base: AppState = initialState): AppState {
+  return { ...base, userMedia: {}, events: [], shelves: [], queue: [] };
+}
+
 export const socialPosts: SocialPost[] = [
   {
     id: "p1",

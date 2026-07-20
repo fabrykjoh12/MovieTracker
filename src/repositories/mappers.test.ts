@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Tables } from "../lib/database.types";
-import { mapCatalogRows, mapLibrarySnapshot } from "./mappers";
+import {
+  buildCatalogIdMaps,
+  mapCatalogRows,
+  mapLibrarySnapshot,
+} from "./mappers";
 
 const mediaRow: Tables<"media"> = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -212,5 +216,31 @@ describe("database mappers", () => {
     );
 
     expect(snapshot.queue).toEqual(["perfect-days"]);
+  });
+});
+
+describe("buildCatalogIdMaps", () => {
+  it("builds bidirectional maps keyed by metadata.localId", () => {
+    const { databaseToLocal, localToDatabase } = buildCatalogIdMaps([
+      mediaRow,
+      queuedPlannedMedia,
+    ]);
+
+    expect(databaseToLocal.get(mediaRow.id)).toBe("severance");
+    expect(databaseToLocal.get(queuedPlannedMedia.id)).toBe("perfect-days");
+    expect(localToDatabase.get("severance")).toBe(mediaRow.id);
+    expect(localToDatabase.get("perfect-days")).toBe(queuedPlannedMedia.id);
+  });
+
+  it("skips rows without a localId in metadata", () => {
+    const unmapped: Tables<"media"> = {
+      ...mediaRow,
+      id: "00000000-0000-4000-8000-000000000099",
+      metadata: {},
+    };
+    const { databaseToLocal, localToDatabase } = buildCatalogIdMaps([unmapped]);
+
+    expect(databaseToLocal.has(unmapped.id)).toBe(false);
+    expect(localToDatabase.size).toBe(0);
   });
 });

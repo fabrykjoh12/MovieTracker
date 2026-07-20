@@ -1,11 +1,12 @@
 import {
   ArrowRight,
+  BookmarkPlus,
   CalendarDays,
   Check,
   Clock3,
   Info,
+  Play,
   RotateCcw,
-  Sparkles,
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -15,8 +16,10 @@ import {
   recommendationReason,
   tonightCandidates,
 } from "../domain";
-import { PosterCard } from "../components/PosterCard";
+import { MediaCard } from "../components/MediaCard";
+import { SectionHeader } from "../components/SectionHeader";
 import { TonightControls } from "../components/TonightControls";
+import { mediaActionLabel } from "../lib/mediaActionLabel";
 import { useStore } from "../store";
 
 export function Home() {
@@ -66,7 +69,7 @@ export function Home() {
               <Clock3 size={15} />
               {upcoming?.episode?.runtime} min
             </span>
-            <span className="service-mark">tv+</span>
+            <span className="service-mark">tv+</span>
             <span>Last watched 2 days ago</span>
           </div>
           <div className="hero-actions">
@@ -111,67 +114,75 @@ export function Home() {
         </div>
       </section>
 
-      <div className="section-heading tonight-heading">
-        <div>
-          <p className="eyebrow">THREE, NOT THIRTY</p>
-          <h2>Tonight’s picks</h2>
-          <p>A focused shortlist shaped by your time, mood and services.</p>
+      <div className="home-zone">
+        <div className="home-primary">
+          <SectionHeader label="THREE, NOT THIRTY" title="Tonight's picks" />
+          <TonightControls />
+          <section
+            className="tonight-grid"
+            aria-label="Tonight's recommendations"
+          >
+            {picks.length ? (
+              picks.map((item, index) => {
+                const userState = state.userMedia[item.id];
+                const onClick = userState
+                  ? () => dispatch({ type: "mark-next", mediaId: item.id })
+                  : () => dispatch({ type: "add", mediaId: item.id });
+                return (
+                  <MediaCard
+                    key={item.id}
+                    title={item.title}
+                    to={`/title/${item.id}`}
+                    poster={item.poster}
+                    pill={index === 0 ? "Up next" : undefined}
+                    meta={`${item.year} · ${
+                      item.format === "movie"
+                        ? `${item.runtime} min`
+                        : `${item.seasons?.length ?? 0} seasons`
+                    }`}
+                    reason={recommendationReason(item, userState)}
+                    footer={
+                      <button
+                        type="button"
+                        className="card-action"
+                        onClick={onClick}
+                        aria-label={`${mediaActionLabel(item, userState)} — ${item.title}`}
+                      >
+                        {userState ? (
+                          <Play size={15} />
+                        ) : (
+                          <BookmarkPlus size={15} />
+                        )}
+                        {mediaActionLabel(item, userState)}
+                      </button>
+                    }
+                  />
+                );
+              })
+            ) : (
+              <div className="empty-state">
+                <h3>No honest matches yet.</h3>
+                <p>Relax one filter and the shortlist will rebuild.</p>
+              </div>
+            )}
+          </section>
         </div>
-        <Sparkles size={23} aria-hidden="true" />
-      </div>
-      <TonightControls />
-      <section className="tonight-grid" aria-label="Tonight's recommendations">
-        {picks.length ? (
-          picks.map((item, index) => (
-            <div className="tonight-pick" key={item.id}>
-              <span className="pick-number">0{index + 1}</span>
-              <PosterCard
-                item={item}
-                userState={state.userMedia[item.id]}
-                priority={index === 0}
-                reason={recommendationReason(item, state.userMedia[item.id])}
-                onAdd={() => dispatch({ type: "add", mediaId: item.id })}
-                onTrack={() =>
-                  dispatch({ type: "mark-next", mediaId: item.id })
-                }
-              />
-            </div>
-          ))
-        ) : (
-          <div className="empty-state">
-            <h3>No honest matches yet.</h3>
-            <p>Relax one filter and the shortlist will rebuild.</p>
-          </div>
-        )}
-      </section>
 
-      <section className="home-lower-grid">
-        <div className="week-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">ON YOUR RADAR</p>
-              <h2>Happening this week</h2>
-            </div>
-            <Link to="/library">
-              Open calendar <ArrowRight size={15} />
-            </Link>
-          </div>
-          <div className="event-list">
+        <aside className="home-rail">
+          <SectionHeader label="THIS WEEK" title="Worth knowing" />
+          <div className="rail-agenda">
             <article>
               <time>
                 <strong>17</strong>
                 <span>FRI</span>
               </time>
-              <div className="event-art">
-                <img src={hero.poster} alt="" />
-              </div>
               <div>
                 <span className="event-type">NEW EPISODE</span>
                 <h3>Severance</h3>
                 <p>“Woe’s Hollow” · Apple TV+</p>
               </div>
               <button type="button" aria-label="Set reminder for Severance">
-                <CalendarDays size={18} />
+                <CalendarDays size={16} />
               </button>
             </article>
             <article>
@@ -179,12 +190,6 @@ export function Home() {
                 <strong>19</strong>
                 <span>SUN</span>
               </time>
-              <div className="event-art">
-                <img
-                  src={catalog.find((item) => item.id === "past-lives")?.poster}
-                  alt=""
-                />
-              </div>
               <div>
                 <span className="event-type available">NOW AVAILABLE</span>
                 <h3>Past Lives</h3>
@@ -197,31 +202,19 @@ export function Home() {
                 <strong>21</strong>
                 <span>TUE</span>
               </time>
-              <div className="event-art">
-                <img
-                  src={catalog.find((item) => item.id === "andor")?.poster}
-                  alt=""
-                />
-              </div>
               <div>
                 <span className="event-type party">WATCH TOGETHER</span>
                 <h3>Friday film shortlist</h3>
                 <p>Sara and Maya are ready to vote</p>
               </div>
               <Link to="/friends" aria-label="Open watch together room">
-                <Users size={18} />
+                <Users size={16} />
               </Link>
             </article>
           </div>
-        </div>
 
-        <aside className="activity-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">CLOSE FRIENDS</p>
-              <h2>Worth knowing</h2>
-            </div>
-          </div>
+          <div className="rail-divider" />
+          <p className="section-kicker rail-subhead">FROM FRIENDS</p>
           <div className="activity-item">
             <span className="friend-avatar warm">SA</span>
             <p>
@@ -236,22 +229,12 @@ export function Home() {
               <strong>Maya</strong> finished the Severance episode you’re on
               <small>Her reaction unlocks when you finish</small>
             </p>
-            <span className="lock-dot" aria-label="Spoiler hidden">
-              ●
-            </span>
-          </div>
-          <div className="activity-item">
-            <span className="friend-avatar green">JO</span>
-            <p>
-              <strong>Jonas</strong> added Perfect Days from your shelf
-              <small>12 minutes ago</small>
-            </p>
           </div>
           <Link className="text-link" to="/friends">
             See friend space <ArrowRight size={15} />
           </Link>
         </aside>
-      </section>
+      </div>
 
       <div className="undo-strip" role="status" aria-live="polite">
         <RotateCcw size={15} />

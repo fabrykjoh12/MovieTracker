@@ -1,24 +1,29 @@
 import {
   AlertCircle,
   ArrowRight,
+  BookmarkPlus,
   Check,
   Clock3,
   Compass,
   Film,
   LoaderCircle,
+  Play,
   Plus,
   Search,
   SlidersHorizontal,
   Tv,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { PosterCard } from "../components/PosterCard";
+import { MediaCard } from "../components/MediaCard";
+import { Poster } from "../components/Poster";
+import { SectionHeader } from "../components/SectionHeader";
 import { recommendationReason } from "../domain";
 import {
   catalogResultKey,
   catalogResultLocalId,
   useCatalogSearch,
 } from "../hooks/useCatalogSearch";
+import { mediaActionLabel } from "../lib/mediaActionLabel";
 import { useStore } from "../store";
 
 export function Discover() {
@@ -58,18 +63,15 @@ export function Discover() {
           All filters
         </button>
       </header>
+
       <section
         className="catalog-search"
         aria-labelledby="catalog-search-title"
       >
-        <div className="catalog-search-copy">
-          <p className="eyebrow">THE WHOLE CATALOG</p>
-          <h2 id="catalog-search-title">Find a specific story</h2>
-          <p>
-            Search movies and series, then save the complete title—not a loose
-            bookmark.
-          </p>
-        </div>
+        <SectionHeader
+          label="THE WHOLE CATALOG"
+          title="Find a specific story"
+        />
         {configured ? (
           <>
             <div className="catalog-search-bar">
@@ -198,6 +200,7 @@ export function Discover() {
           </div>
         )}
       </section>
+
       <section
         className="editorial-hero"
         style={
@@ -237,41 +240,54 @@ export function Discover() {
           </div>
         </div>
       </section>
-      <section>
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">JUST FOR YOU</p>
-            <h2>Three considered matches</h2>
-            <p>Based on verdicts, pacing and what you actually finish.</p>
-          </div>
-        </div>
-        <div className="poster-grid three-up">
-          {recommendations.map((item) => (
-            <PosterCard
-              key={item.id}
-              item={item}
-              userState={state.userMedia[item.id]}
-              reason={recommendationReason(item, state.userMedia[item.id])}
-              onAdd={() => dispatch({ type: "add", mediaId: item.id })}
-              onTrack={() => dispatch({ type: "mark-next", mediaId: item.id })}
-            />
-          ))}
+
+      <section className="discover-section">
+        <SectionHeader label="JUST FOR YOU" title="Three considered matches" />
+        <div className="three-up">
+          {recommendations.map((item) => {
+            const userState = state.userMedia[item.id];
+            const onClick = userState
+              ? () => dispatch({ type: "mark-next", mediaId: item.id })
+              : () => dispatch({ type: "add", mediaId: item.id });
+            return (
+              <MediaCard
+                key={item.id}
+                title={item.title}
+                to={`/title/${item.id}`}
+                poster={item.poster}
+                meta={`${item.year} · ${
+                  item.format === "movie"
+                    ? `${item.runtime} min`
+                    : `${item.seasons?.length ?? 0} seasons`
+                }`}
+                reason={recommendationReason(item, userState)}
+                footer={
+                  <button
+                    type="button"
+                    className="card-action"
+                    onClick={onClick}
+                    aria-label={`${mediaActionLabel(item, userState)} — ${item.title}`}
+                  >
+                    {userState ? (
+                      <Play size={15} />
+                    ) : (
+                      <BookmarkPlus size={15} />
+                    )}
+                    {mediaActionLabel(item, userState)}
+                  </button>
+                }
+              />
+            );
+          })}
         </div>
       </section>
-      <section className="collection-section">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">EDITORIAL COLLECTION</p>
-            <h2>Films that echo afterward</h2>
-            <p>
-              Quietly devastating stories where the final frame changes
-              everything before it.
-            </p>
-          </div>
-          <Link to="/library">
-            Save collection <ArrowRight size={15} />
-          </Link>
-        </div>
+
+      <section className="discover-section collection-section">
+        <SectionHeader
+          label="EDITORIAL COLLECTION"
+          title="Films that echo afterward"
+          action={{ text: "Save collection", to: "/library" }}
+        />
         <div className="collection-ribbon">
           {collection.map((item, index) => (
             <Link
@@ -280,7 +296,7 @@ export function Discover() {
               className="collection-item"
             >
               <span>0{index + 1}</span>
-              <img src={item.poster} alt={`${item.title} artwork`} />
+              <Poster src={item.poster} alt={`${item.title} poster`} />
               <div>
                 <strong>{item.title}</strong>
                 <small>
@@ -291,6 +307,7 @@ export function Discover() {
           ))}
         </div>
       </section>
+
       <section className="discovery-paths">
         <article>
           <Compass size={22} />

@@ -143,6 +143,14 @@ An authenticated user can find a real movie or series, inspect its actual season
 - [ ] Add loading, error, offline, expired-session, and rollback states.
 - [ ] Add import and export for personal backup.
 
+### Interface and design system
+
+- [x] Add reusable layout primitives — Poster (with skeleton and empty states so missing artwork never spills raw alt text), SectionHeader, and MediaCard — plus density tokens.
+- [x] Redesign Home into a calmer one-hero layout with quiet section headers and a consolidated right rail, presentation-only and behavior-preserving.
+- [ ] Apply the primitives to Discover and Library, and reduce Library's overlapping view modes.
+- [ ] Rebuild mobile navigation as a dedicated bottom bar.
+- [ ] Remove the now-unused legacy Home CSS left behind by the redesign.
+
 ### Phase 3 exit gate
 
 A tester can use MovieTracker for seven consecutive days on two devices without losing data or needing another tracking application.
@@ -171,7 +179,7 @@ Five to ten invited testers can follow one another, react, and use Watch Togethe
 - [ ] Configure database backups and complete a restoration exercise.
 - [ ] Add structured logs, error reporting, and failed-mutation monitoring.
 - [ ] Monitor metadata-provider health and quotas.
-- [ ] Add account export and deletion.
+- [x] Add account export (self-describing JSON) and data-only deletion in both demo and cloud modes. Full Auth-identity erasure remains a server-side follow-up.
 - [ ] Write privacy, terms, retention, and acceptable-use policies.
 - [ ] Add abuse prevention for invitations and social writes.
 - [ ] Create operational and incident-response runbooks.

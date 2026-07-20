@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { Account } from "./Account";
@@ -21,18 +21,37 @@ vi.mock("../auth/AuthProvider", () => ({
   }),
 }));
 
-const store = vi.hoisted(() => ({
-  librarySync: { status: "browser", message: undefined } as {
-    status: "browser" | "needs-import" | "import-error";
-    message?: string;
-  },
-  startCloudSync: vi.fn(),
-  retryCloudSync: vi.fn(),
-}));
+const store = vi.hoisted(() => {
+  const store = {
+    state: { userMedia: { severance: {}, arrival: {} } } as {
+      userMedia: Record<string, unknown>;
+    },
+    librarySync: { status: "browser", message: undefined } as {
+      status: "browser" | "needs-import" | "import-error";
+      message?: string;
+    },
+    startCloudSync: vi.fn(),
+    retryCloudSync: vi.fn(),
+    downloadExport: vi.fn(() => {
+      const blob = new Blob(["{}"], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "movietracker-export.json";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    }),
+    deleteAllData: vi.fn(async () => {
+      store.state = { userMedia: {} };
+    }),
+  };
+  return store;
+});
 
 vi.mock("../store", () => ({
   useStore: () => ({
-    state: { userMedia: { severance: {}, arrival: {} } },
     ...store,
   }),
 }));
@@ -55,6 +74,7 @@ describe("account password setup", () => {
     auth.user = null;
     auth.status = "anonymous";
     store.librarySync = { status: "browser", message: undefined };
+    store.state = { userMedia: { severance: {}, arrival: {} } };
     window.history.replaceState(null, "", "/#/account");
   });
 
@@ -157,5 +177,61 @@ describe("account password setup", () => {
     );
     expect(store.startCloudSync).toHaveBeenCalledOnce();
     expect(store.retryCloudSync).not.toHaveBeenCalled();
+  });
+});
+
+describe("account data controls", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    auth.user = null;
+    auth.status = "anonymous";
+    store.librarySync = { status: "browser", message: undefined };
+    store.state = { userMedia: { severance: {}, arrival: {} } };
+    window.history.replaceState(null, "", "/#/account");
+  });
+
+  it("exports account data as a downloaded JSON file", () => {
+    const createObjectURL = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValue("blob:mock");
+    const revokeObjectURL = vi
+      .spyOn(URL, "revokeObjectURL")
+      .mockImplementation(() => undefined);
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+
+    renderAccount();
+
+    fireEvent.click(screen.getByRole("button", { name: /export my data/i }));
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(createObjectURL.mock.calls[0]?.[0]).toBeInstanceOf(Blob);
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:mock");
+
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
+    clickSpy.mockRestore();
+  });
+
+  it("requires typing DELETE before wiping data", async () => {
+    renderAccount();
+
+    const deleteButton = screen.getByRole("button", {
+      name: /delete all my data/i,
+    });
+    expect(deleteButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/type delete to confirm/i), {
+      target: { value: "DELETE" },
+    });
+    expect(deleteButton).toBeEnabled();
+
+    fireEvent.click(deleteButton);
+
+    await waitFor(() =>
+      expect(screen.getByText(/your library is empty/i)).toBeInTheDocument(),
+    );
   });
 });

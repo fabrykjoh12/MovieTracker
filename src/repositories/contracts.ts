@@ -52,6 +52,7 @@ export interface LibrarySyncRepository extends LibraryRepository {
   import(snapshot: LibrarySnapshot): Promise<CloudLibrarySnapshot>;
   persistChanges(previous: AppState, next: AppState): Promise<void>;
   refreshCatalog(): Promise<Media[]>;
+  deleteAllData(): Promise<void>;
 }
 
 export interface TrackingRepository {

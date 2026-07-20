@@ -37,6 +37,7 @@ const stateRow: Tables<"user_media_states"> = {
 
 class FakeQuery implements PromiseLike<any> {
   private action: "select" | "insert" | "update" | "delete" = "select";
+  private updatePayload: Record<string, unknown> | null = null;
 
   constructor(
     private readonly database: FakeDatabase,
@@ -52,8 +53,9 @@ class FakeQuery implements PromiseLike<any> {
     return this;
   }
 
-  update() {
+  update(values?: Record<string, unknown>) {
     this.action = "update";
+    this.updatePayload = values ?? null;
     return this;
   }
 
@@ -98,8 +100,13 @@ class FakeQuery implements PromiseLike<any> {
   }
 
   private execute(single: boolean) {
+    if (this.action === "delete") {
+      this.database.deletedTables.push(this.table);
+      return { data: single ? null : null, error: null };
+    }
     if (this.action === "update" && this.table === "profiles") {
-      this.database.profileInitialized = true;
+      this.database.profileInitialized =
+        this.updatePayload?.library_initialized_at != null;
       return { data: single ? {} : null, error: null };
     }
     if (
@@ -127,6 +134,7 @@ class FakeDatabase {
   profileInitialized = false;
   conflictOnStateUpdate = false;
   states: Tables<"user_media_states">[] = [];
+  deletedTables: string[] = [];
 
   readonly client = {
     from: (table: string) => new FakeQuery(this, table),
@@ -196,5 +204,25 @@ describe("Neon library repository", () => {
     await expect(repository.saveState(changed, 0)).rejects.toBeInstanceOf(
       LibraryConflictError,
     );
+  });
+
+  it("deletes only owned rows and clears the sync marker", async () => {
+    const database = new FakeDatabase();
+    database.profileInitialized = true;
+    const repository = createNeonLibraryRepository(
+      database.client as never,
+      "user-1",
+    );
+
+    await repository.deleteAllData();
+
+    expect(database.deletedTables).toEqual([
+      "watch_events",
+      "verdicts",
+      "pairwise_comparisons",
+      "user_media_states",
+      "shelves",
+    ]);
+    expect(database.profileInitialized).toBe(false);
   });
 });

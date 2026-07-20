@@ -125,7 +125,7 @@ Complete the remaining production browser smoke tests, then expand persisted per
 
 1. Confirm global header search plus the accepted queue, progress, and Verdict flow in a physical second-device browser.
 2. Add Neon persistence for editable profiles and custom shelves.
-3. Add export and deletion controls before inviting more beta users.
+3. Account export (self-describing JSON) and data-only deletion are implemented in both demo and cloud modes. Remaining follow-ups: full Auth-identity erasure through a trusted server boundary, an import path that consumes the export, and editable-profile/shelf persistence.
 
 Add unit tests for mapping and repository behavior plus live integration tests for RLS. Keep provider metadata writes on a trusted server boundary; the browser must not receive privileged database credentials.
 
