@@ -6,13 +6,11 @@ import {
   Plus,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { mutualMatches } from "../domain";
 import { useStore } from "../store";
 
 export function Friends() {
   const { state, dispatch, catalog } = useStore();
   const room = state.room;
-  const matches = mutualMatches(room);
   return (
     <div className="page friends-page">
       <header className="page-title-row">
@@ -40,15 +38,8 @@ export function Friends() {
             <h2>{room.name}</h2>
             <p>Private voting. Nobody has to defend a no.</p>
           </div>
-          <div
-            className="participant-stack"
-            aria-label={`${room.participants.length} participants`}
-          >
-            {room.participants.map((person) => (
-              <span key={person} title={person}>
-                {person === "You" ? "AK" : person.slice(0, 2).toUpperCase()}
-              </span>
-            ))}
+          <div className="participant-stack" aria-label="1 participant">
+            <span title="You">AK</span>
           </div>
         </header>
         <div className="room-constraints">
@@ -111,11 +102,7 @@ export function Friends() {
           })}
         </div>
         <footer>
-          <span>
-            {matches.length
-              ? `${matches.length} possible mutual ${matches.length === 1 ? "match" : "matches"}`
-              : "Vote to reveal mutual matches"}
-          </span>
+          <span>Watch Together matching isn&rsquo;t live yet.</span>
           <button
             className="primary-button"
             type="button"
@@ -134,84 +121,22 @@ export function Friends() {
               <h2>Friend activity</h2>
             </div>
           </div>
-          <article>
-            <span className="friend-avatar warm">SA</span>
-            <div>
-              <p>
-                <strong>Sara</strong> gave{" "}
-                <Link to="/title/portrait">Portrait of a Lady on Fire</Link> an
-                All-timer verdict.
-              </p>
-              <small>Visuals · Emotion · Ending</small>
-              <blockquote>
-                “Every look feels like a whole conversation.”
-              </blockquote>
-              <span>18 minutes ago</span>
-            </div>
-          </article>
-          <article>
-            <span className="friend-avatar blue">MY</span>
-            <div>
-              <p>
-                <strong>Maya</strong> finished Severance S2 E8.
-              </p>
-              <small>
-                <LockKeyhole size={13} />
-                Reaction hidden until you reach this episode
-              </small>
-              <button
-                className="spoiler-button"
-                type="button"
-                disabled
-                title="Coming soon"
-              >
-                Reveal anyway
-              </button>
-              <span>Yesterday</span>
-            </div>
-          </article>
-          <article>
-            <span className="friend-avatar green">JO</span>
-            <div>
-              <p>
-                <strong>Jonas</strong> wants to watch{" "}
-                <Link to="/title/perfect-days">Perfect Days</Link> with you.
-              </p>
-              <small>Both of you saved it · 2h 4m</small>
-              <span>Tuesday</span>
-            </div>
-          </article>
+          <div className="empty-state">
+            <h3>No friends yet</h3>
+            <p>
+              Invite a friend to see their recommendations and reactions here.
+              Activity is never shown until you actually have friends on the
+              account.
+            </p>
+          </div>
         </div>
-        <aside className="compatibility-card">
-          <div className="compat-orbit">
-            <span>AK</span>
-            <i />
-            <span>SA</span>
-          </div>
+        <aside className="compatibility-card compatibility-card-empty">
           <p className="eyebrow">TASTE COMPATIBILITY</p>
-          <h2>You & Sara</h2>
-          <strong>Closely aligned</strong>
+          <h2>Coming soon</h2>
           <p>
-            You both favour patient, character-led stories. Sara leans darker;
-            you’re more generous with quiet comedy.
+            Compatibility scores need a real friend to compare against.
+            They&rsquo;ll appear here once invites are live.
           </p>
-          <div>
-            <span>
-              <i style={{ width: "87%" }} />
-              Pacing
-            </span>
-            <span>
-              <i style={{ width: "76%" }} />
-              Tone
-            </span>
-            <span>
-              <i style={{ width: "92%" }} />
-              Story
-            </span>
-          </div>
-          <button type="button" disabled title="Coming soon">
-            Compare taste maps <ChevronRight size={16} />
-          </button>
         </aside>
       </section>
       <section className="social-principle">

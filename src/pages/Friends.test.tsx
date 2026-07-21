@@ -44,12 +44,30 @@ describe("Friends", () => {
       "Invite a friend",
       "Edit constraints",
       "Reveal matches",
-      "Reveal anyway",
-      "Compare taste maps",
     ]) {
       expect(
         screen.getByRole("button", { name: new RegExp(name) }),
       ).toBeDisabled();
     }
+  });
+
+  it("does not show fabricated friends, activity, or compatibility data", () => {
+    renderFriends();
+    expect(screen.queryByText(/Sara/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Maya/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Jonas/)).not.toBeInTheDocument();
+    expect(screen.getByText("No friends yet")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Coming soon" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("1 participant")).toBeInTheDocument();
+  });
+
+  it("does not claim a mutual match computed from data that isn't real", () => {
+    renderFriends();
+    expect(screen.queryByText(/possible mutual/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Watch Together matching isn’t live yet."),
+    ).toBeInTheDocument();
   });
 });
