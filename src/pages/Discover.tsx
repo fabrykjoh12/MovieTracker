@@ -58,7 +58,12 @@ export function Discover() {
           <h1>Discover</h1>
           <p>Curated paths in. Every recommendation has a reason.</p>
         </div>
-        <button className="secondary-button" type="button">
+        <button
+          className="secondary-button"
+          type="button"
+          disabled
+          title="Advanced filtering is coming soon"
+        >
           <SlidersHorizontal size={17} />
           All filters
         </button>

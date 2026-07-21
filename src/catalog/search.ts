@@ -41,7 +41,18 @@ export interface CatalogSearchClient {
     format?: "any" | MediaFormat,
     signal?: AbortSignal,
   ): Promise<CatalogSearchResponse>;
-  importTitle(result: MediaSearchResult, signal?: AbortSignal): Promise<Media>;
+  /**
+   * Importing writes to the shared trusted catalog, so it requires the
+   * caller's current Neon Auth JWT (fetched fresh by the caller — it is
+   * short-lived and must never be cached). Pass null/undefined for a
+   * signed-out caller: the request still goes out so the server's honest
+   * 401 remains the single source of truth for "you must sign in."
+   */
+  importTitle(
+    result: MediaSearchResult,
+    accessToken?: string | null,
+    signal?: AbortSignal,
+  ): Promise<Media>;
 }
 
 function apiMessage(payload: unknown, fallback: string) {
@@ -136,12 +147,13 @@ export function createCatalogSearchClient({
       };
     },
 
-    async importTitle(result, signal) {
+    async importTitle(result, accessToken, signal) {
       const response = await request(`${root}/v1/catalog`, {
         method: "POST",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
           provider: result.provider,

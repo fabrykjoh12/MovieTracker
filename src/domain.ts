@@ -54,6 +54,64 @@ export const progressPercent = (media: Media, progress?: EpisodeProgress) => {
     : 0;
 };
 
+const eventMinutes = (event: WatchEvent, media?: Media) => {
+  if (!media) return 0;
+  switch (event.type) {
+    case "movie":
+      return media.runtime;
+    case "episode": {
+      const season = media.seasons?.find((s) => s.number === event.season);
+      const episode = season?.episodes.find((e) => e.number === event.episode);
+      return episode?.runtime ?? media.runtime;
+    }
+    case "season": {
+      const season = media.seasons?.find((s) => s.number === event.season);
+      return (
+        season?.episodes.reduce((sum, episode) => sum + episode.runtime, 0) ?? 0
+      );
+    }
+    // A rewatch event only marks that a rewatch started; it carries no
+    // watched duration of its own. Time watched during the rewatch is
+    // captured by the movie/episode/season events that follow it.
+    case "rewatch":
+      return 0;
+  }
+};
+
+export interface WeeklyWatchSummary {
+  totalMinutes: number;
+  /** Minutes watched per day, oldest (6 days ago) to newest (today). */
+  dailyMinutes: number[];
+}
+
+const dayKey = (isoDate: string) => isoDate.slice(0, 10);
+
+export const weeklyWatchSummary = (
+  events: WatchEvent[],
+  catalog: Media[],
+  now = new Date(),
+): WeeklyWatchSummary => {
+  const catalogById = new Map(catalog.map((item) => [item.id, item]));
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(now);
+    date.setDate(date.getDate() - (6 - index));
+    return dayKey(date.toISOString());
+  });
+  const dailyMinutes = days.map((key) =>
+    events
+      .filter((event) => dayKey(event.watchedAt) === key)
+      .reduce(
+        (sum, event) =>
+          sum + eventMinutes(event, catalogById.get(event.mediaId)),
+        0,
+      ),
+  );
+  return {
+    totalMinutes: dailyMinutes.reduce((sum, minutes) => sum + minutes, 0),
+    dailyMinutes,
+  };
+};
+
 export const nextEpisode = (
   media: Media,
   progress?: EpisodeProgress,
@@ -76,6 +134,184 @@ export const nextEpisode = (
   return followingSeason && followingEpisode
     ? { season: followingSeason, episode: followingEpisode }
     : undefined;
+};
+
+const lastActivity = (entry: UserMediaState) =>
+  entry.watchedDates.at(-1) ?? entry.savedAt;
+
+/**
+ * The account's real in-progress series, for the Home "Continue Watching"
+ * hero -- the most recently watched title that is actively being watched
+ * and still has a next episode to show. Returns undefined when there is
+ * none, rather than a fallback title; the caller must render an honest
+ * empty state instead of fabricating a hero.
+ */
+export const continueWatchingCandidate = (
+  userMedia: Record<string, UserMediaState>,
+  catalog: Media[],
+): Media | undefined => {
+  const candidates = Object.values(userMedia)
+    .filter(
+      (entry) => entry.status === "watching" || entry.status === "rewatching",
+    )
+    .map((entry) => ({
+      entry,
+      media: catalog.find((item) => item.id === entry.mediaId),
+    }))
+    .filter((candidate): candidate is { entry: UserMediaState; media: Media } =>
+      Boolean(
+        candidate.media?.format === "series" &&
+        nextEpisode(candidate.media, candidate.entry.progress),
+      ),
+    )
+    .sort(
+      (a, b) =>
+        lastActivity(b.entry).localeCompare(lastActivity(a.entry)) ||
+        b.entry.savedAt.localeCompare(a.entry.savedAt),
+    );
+  return candidates[0]?.media;
+};
+
+export interface LibraryOverview {
+  totalWatched: number;
+  watchedThisYear: number;
+  filmsThisYear: number;
+  seriesThisYear: number;
+  totalHours: number;
+  hoursThisYear: number;
+  totalRewatches: number;
+  rewatchesThisYear: number;
+  favouritesThisYear: number;
+}
+
+/**
+ * Real, computed profile stats -- a title only counts once it has actually
+ * been completed (or is being rewatched, which implies a prior completion),
+ * and "this year" is judged by the account's own most recent activity on
+ * that title, not a fabricated number.
+ */
+export const libraryOverview = (
+  userMedia: Record<string, UserMediaState>,
+  events: WatchEvent[],
+  catalog: Media[],
+  now = new Date(),
+): LibraryOverview => {
+  const catalogById = new Map(catalog.map((item) => [item.id, item]));
+  const year = now.getFullYear();
+  const finished = Object.values(userMedia).filter(
+    (entry) => entry.status === "completed" || entry.status === "rewatching",
+  );
+  const finishedThisYear = finished.filter((entry) => {
+    const last = entry.watchedDates.at(-1);
+    return last ? new Date(last).getFullYear() === year : false;
+  });
+  const minutesFor = (candidates: WatchEvent[]) =>
+    candidates.reduce(
+      (sum, event) => sum + eventMinutes(event, catalogById.get(event.mediaId)),
+      0,
+    );
+  const eventsThisYear = events.filter(
+    (event) => new Date(event.watchedAt).getFullYear() === year,
+  );
+  const favouritesThisYear = Object.values(userMedia).filter(
+    (entry) =>
+      entry.verdict &&
+      (entry.verdict.kind === "all-timer" || entry.verdict.kind === "loved") &&
+      new Date(entry.verdict.recordedAt).getFullYear() === year,
+  ).length;
+  return {
+    totalWatched: finished.length,
+    watchedThisYear: finishedThisYear.length,
+    filmsThisYear: finishedThisYear.filter(
+      (entry) => catalogById.get(entry.mediaId)?.format === "movie",
+    ).length,
+    seriesThisYear: finishedThisYear.filter(
+      (entry) => catalogById.get(entry.mediaId)?.format === "series",
+    ).length,
+    totalHours: Math.round(minutesFor(events) / 60),
+    hoursThisYear: Math.round(minutesFor(eventsThisYear) / 60),
+    totalRewatches: events.filter((event) => event.type === "rewatch").length,
+    rewatchesThisYear: eventsThisYear.filter(
+      (event) => event.type === "rewatch",
+    ).length,
+    favouritesThisYear,
+  };
+};
+
+/**
+ * The account's real personal canon for Profile -- titles it has actually
+ * recorded a Verdict for, ordered by an explicit rank first (lower is
+ * better, matching the #1/#2 display elsewhere) and by Verdict strength
+ * otherwise. Returns an empty array rather than a fallback list; the
+ * caller must render an honest empty state instead of fabricating one.
+ */
+export const topFavourites = (
+  userMedia: Record<string, UserMediaState>,
+  catalog: Media[],
+  limit: number,
+): Media[] => {
+  const catalogById = new Map(catalog.map((item) => [item.id, item]));
+  return Object.values(userMedia)
+    .map((entry) => ({
+      entry,
+      verdict: entry.verdict,
+      media: catalogById.get(entry.mediaId),
+    }))
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        entry: UserMediaState;
+        verdict: NonNullable<UserMediaState["verdict"]>;
+        media: Media;
+      } => Boolean(candidate.verdict && candidate.media),
+    )
+    .sort((a, b) => {
+      if (a.verdict.rank !== undefined && b.verdict.rank !== undefined) {
+        return a.verdict.rank - b.verdict.rank;
+      }
+      if (a.verdict.rank !== undefined) return -1;
+      if (b.verdict.rank !== undefined) return 1;
+      return b.verdict.normalized - a.verdict.normalized;
+    })
+    .slice(0, limit)
+    .map((candidate) => candidate.media);
+};
+
+export interface TasteTag {
+  label: string;
+  size: "large" | "medium" | "small";
+}
+
+/**
+ * A real word cloud of the account's genres and moods, drawn from titles
+ * actually in its library (excluding dropped titles), sized by how often
+ * each tag recurs -- not a fixed editorial list.
+ */
+export const tasteCloud = (
+  userMedia: Record<string, UserMediaState>,
+  catalog: Media[],
+  limit = 8,
+): TasteTag[] => {
+  const catalogById = new Map(catalog.map((item) => [item.id, item]));
+  const counts = new Map<string, number>();
+  for (const entry of Object.values(userMedia)) {
+    if (entry.status === "dropped") continue;
+    const media = catalogById.get(entry.mediaId);
+    if (!media) continue;
+    for (const tag of [...media.genres, ...media.moods]) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  const sorted = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+  const max = sorted[0]?.[1] ?? 0;
+  return sorted.map(([label, count]) => ({
+    label,
+    size:
+      count >= max * 0.7 ? "large" : count >= max * 0.4 ? "medium" : "small",
+  }));
 };
 
 export const markNextEpisode = (

@@ -161,6 +161,116 @@ describe("cloud mutation recovery", () => {
   });
 });
 
+describe("edits blocked while cloud state is unresolved", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repository.refreshCatalog.mockResolvedValue(media);
+  });
+
+  it("blocks a dispatch made while the cloud repository is still connecting", async () => {
+    const load = deferred<{
+      initialized: boolean;
+      userMedia: typeof initialState.userMedia;
+      events: typeof initialState.events;
+      queue: typeof initialState.queue;
+      catalog: typeof media;
+    }>();
+    repository.load.mockReturnValueOnce(load.promise);
+    const user = userEvent.setup();
+
+    render(
+      <StoreProvider>
+        <StoreProbe />
+      </StoreProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Cloud status")).toHaveTextContent(
+        "connecting",
+      );
+    });
+    expect(screen.getByLabelText("Severance state")).toHaveTextContent(
+      "watching",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Pause Severance" }));
+
+    // The click must not have been written anywhere -- not to state, and
+    // not to browser storage where a later successful connect would
+    // silently overwrite it via hydrateLibrary.
+    expect(screen.getByLabelText("Severance state")).toHaveTextContent(
+      "watching",
+    );
+    expect(screen.getByLabelText("Cloud status")).toHaveTextContent(
+      "connecting",
+    );
+    expect(screen.getByLabelText("Cloud message")).toHaveTextContent(
+      "reconnecting",
+    );
+
+    await act(async () => {
+      load.resolve({
+        initialized: true,
+        userMedia: initialState.userMedia,
+        events: initialState.events,
+        queue: initialState.queue,
+        catalog: media,
+      });
+      await load.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Cloud status")).toHaveTextContent("synced");
+    });
+    // The real cloud state, not a locally blocked "paused" that never happened.
+    expect(screen.getByLabelText("Severance state")).toHaveTextContent(
+      "watching",
+    );
+  });
+
+  it("blocks a dispatch made while the cloud repository is in an error state", async () => {
+    repository.load.mockResolvedValue({
+      initialized: true,
+      userMedia: initialState.userMedia,
+      events: initialState.events,
+      queue: initialState.queue,
+      catalog: media,
+    });
+    repository.persistChanges.mockRejectedValueOnce(
+      new Error("The network rejected the change."),
+    );
+    const user = userEvent.setup();
+
+    render(
+      <StoreProvider>
+        <StoreProbe />
+      </StoreProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Cloud status")).toHaveTextContent("synced");
+    });
+
+    await user.click(screen.getByRole("button", { name: "Pause Severance" }));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Cloud status")).toHaveTextContent("error");
+    });
+    expect(screen.getByLabelText("Severance state")).toHaveTextContent(
+      "watching",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Pause Severance" }));
+
+    expect(screen.getByLabelText("Severance state")).toHaveTextContent(
+      "watching",
+    );
+    expect(screen.getByLabelText("Cloud message")).toHaveTextContent(
+      "reconnecting",
+    );
+    expect(repository.persistChanges).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("real store export and cloud deletion", () => {
   beforeEach(() => {
     vi.clearAllMocks();

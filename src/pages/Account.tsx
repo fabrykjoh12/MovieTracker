@@ -14,7 +14,10 @@ import { useAuth } from "../auth/AuthProvider";
 import { useStore } from "../store";
 
 type AccountMode =
-  "sign-in" | "request-reset" | "reset-password" | "reset-sent";
+  | "sign-in"
+  | "request-reset"
+  | "reset-password"
+  | "reset-sent";
 
 function readResetToken() {
   const pageUrl = new URL(window.location.href);

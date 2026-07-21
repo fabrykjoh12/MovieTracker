@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Compass,
   Home,
@@ -13,8 +13,15 @@ import {
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
+import { weeklyWatchSummary } from "../domain";
 import { useStore } from "../store";
 import { GlobalSearchDialog } from "./GlobalSearchDialog";
+
+function formatWatchDuration(totalMinutes: number) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
 
 const navigation = [
   { to: "/", label: "Home", icon: Home },
@@ -36,7 +43,15 @@ function isEditableTarget(target: EventTarget | null) {
 
 export function Shell() {
   const { status, user } = useAuth();
-  const { librarySync } = useStore();
+  const { state, catalog, librarySync, retryCloudSync } = useStore();
+  const editsBlocked =
+    status === "authenticated" &&
+    (librarySync.status === "connecting" || librarySync.status === "error");
+  const weeklyWatch = useMemo(
+    () => weeklyWatchSummary(state.events, catalog),
+    [state.events, catalog],
+  );
+  const maxDailyMinutes = Math.max(1, ...weeklyWatch.dailyMinutes);
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     localStorage.getItem("movietracker:theme") === "light" ? "light" : "dark",
   );
@@ -145,6 +160,29 @@ export function Shell() {
         </div>
       </header>
 
+      {editsBlocked && (
+        <div
+          className={`sync-block-banner ${librarySync.status}`}
+          role={librarySync.status === "error" ? "alert" : "status"}
+        >
+          <p>
+            {librarySync.status === "connecting"
+              ? "Connecting to your library. Changes can't be saved until this finishes."
+              : (librarySync.message ??
+                "Your library needs attention. Changes can't be saved until it reconnects.")}
+          </p>
+          {librarySync.status === "error" && (
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => void retryCloudSync()}
+            >
+              Try again
+            </button>
+          )}
+        </div>
+      )}
+
       <GlobalSearchDialog
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
@@ -171,15 +209,20 @@ export function Shell() {
         <div className="sidebar-footer">
           <p>YOUR WEEK</p>
           <div className="week-stat">
-            <strong>4h 32m</strong>
+            <strong>{formatWatchDuration(weeklyWatch.totalMinutes)}</strong>
             <span>watched</span>
           </div>
           <div
             className="mini-bars"
-            aria-label="Four hours and thirty-two minutes watched this week"
+            aria-label={`${formatWatchDuration(weeklyWatch.totalMinutes)} watched this week`}
           >
-            {[35, 80, 20, 56, 92, 44, 10].map((height, index) => (
-              <i key={index} style={{ height: `${height}%` }} />
+            {weeklyWatch.dailyMinutes.map((minutes, index) => (
+              <i
+                key={index}
+                style={{
+                  height: `${Math.max(4, (minutes / maxDailyMinutes) * 100)}%`,
+                }}
+              />
             ))}
           </div>
         </div>

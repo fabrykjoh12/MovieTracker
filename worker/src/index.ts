@@ -2,6 +2,7 @@ import type {
   CatalogSearchResponse,
   ProviderMediaType,
 } from "../../src/catalog/search";
+import { AuthError, verifyAuthenticatedUser } from "./auth";
 import { createCatalogDatabase } from "./catalog";
 import { fetchTmdbCatalogEntry, searchTmdb, TmdbApiError } from "./tmdb";
 
@@ -13,8 +14,11 @@ interface Env {
   TMDB_READ_ACCESS_TOKEN: string;
   DATABASE_URL: string;
   ALLOWED_ORIGINS: string;
+  NEON_AUTH_JWKS_URL?: string;
+  NEON_AUTH_BASE_URL?: string;
   SEARCH_RATE_LIMITER: RateLimitBinding;
   IMPORT_RATE_LIMITER: RateLimitBinding;
+  IMPORT_RATE_LIMITER_USER: RateLimitBinding;
 }
 
 interface ErrorBody {
@@ -176,6 +180,44 @@ async function importTitle(request: Request, env: Env, requestId: string) {
       requestId,
     );
   }
+
+  let userId: string;
+  try {
+    userId = await verifyAuthenticatedUser(request, env);
+  } catch (error) {
+    const authError =
+      error instanceof AuthError
+        ? error
+        : new AuthError("Sign in to do that.", "unauthenticated");
+    console.warn("catalog_import_unauthenticated", {
+      requestId,
+      code: authError.code,
+    });
+    return errorResponse(
+      request,
+      env,
+      authError.code === "auth_unavailable" ? 500 : 401,
+      authError.code,
+      authError.message,
+      requestId,
+    );
+  }
+
+  const userRate = await env.IMPORT_RATE_LIMITER_USER.limit({
+    key: `catalog-user:${userId}`,
+  });
+  if (!userRate.success) {
+    console.warn("catalog_import_user_rate_limited", { requestId, userId });
+    return errorResponse(
+      request,
+      env,
+      429,
+      "rate_limited",
+      "You've added a lot of titles very quickly. Wait a moment and try again.",
+      requestId,
+    );
+  }
+
   const contentLength = Number(request.headers.get("Content-Length") ?? 0);
   if (contentLength > 1024) {
     return errorResponse(
@@ -225,8 +267,14 @@ async function importTitle(request: Request, env: Env, requestId: string) {
   const providerId = input.providerId;
   const database = createCatalogDatabase(env.DATABASE_URL);
   const cached = await database.getFreshTmdbTitle(mediaType, providerId);
-  if (cached)
+  if (cached) {
+    console.info("catalog_import_served_cache", {
+      requestId,
+      userId,
+      mediaType,
+    });
     return json(request, env, { media: cached, source: "neon-cache" });
+  }
 
   const entry = await fetchTmdbCatalogEntry(
     env.TMDB_READ_ACCESS_TOKEN,
@@ -234,6 +282,7 @@ async function importTitle(request: Request, env: Env, requestId: string) {
     providerId,
   );
   const media = await database.saveTmdbTitle(entry, mediaType, providerId);
+  console.info("catalog_import_succeeded", { requestId, userId, mediaType });
   return json(request, env, { media, source: "tmdb" }, 201);
 }
 

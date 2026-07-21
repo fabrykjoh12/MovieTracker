@@ -7,6 +7,14 @@
   "workers_dev": true,
   "vars": {
     "ALLOWED_ORIGINS": "https://fabrykjoh12.github.io,http://localhost:4173,http://127.0.0.1:4173",
+    // REQUIRED MANUAL ACTION before deploying: set these two to the same
+    // Neon Auth URL used for VITE_NEON_AUTH_URL (Neon console -> Auth ->
+    // Configuration). NEON_AUTH_BASE_URL is that URL's origin;
+    // NEON_AUTH_JWKS_URL is "<that URL>/.well-known/jwks.json". Left empty,
+    // catalog import fails closed (401/500) for every caller rather than
+    // silently accepting unauthenticated writes -- see worker/src/auth.ts.
+    "NEON_AUTH_BASE_URL": "",
+    "NEON_AUTH_JWKS_URL": "",
   },
   "secrets": {
     "required": ["TMDB_READ_ACCESS_TOKEN", "DATABASE_URL"],
@@ -21,6 +29,14 @@
       "name": "IMPORT_RATE_LIMITER",
       "namespace_id": "1002",
       "simple": { "limit": 10, "period": 60 },
+    },
+    {
+      // Per-authenticated-user cap, independent of the per-IP limiter above
+      // (defense in depth: a user behind a rotating/shared IP is still
+      // bounded, and a single IP can't exhaust another user's budget).
+      "name": "IMPORT_RATE_LIMITER_USER",
+      "namespace_id": "1003",
+      "simple": { "limit": 20, "period": 60 },
     },
   ],
   "observability": {

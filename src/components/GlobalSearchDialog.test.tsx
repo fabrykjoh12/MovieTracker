@@ -74,7 +74,16 @@ describe("global catalog search", () => {
     });
   });
 
-  it("searches from the header, saves a series, and opens its detail page", async () => {
+  // The catalog import endpoint now requires an authenticated Neon Auth
+  // caller (see worker/src/auth.ts), so a signed-out/demo session can never
+  // complete a search-to-import-to-detail-page round trip through
+  // `<App />` -- that would just be testing a 401. The authenticated happy
+  // path is covered at the layers that actually exercise it:
+  // worker/src/index.test.ts (real JWT verification) and
+  // src/hooks/useCatalogSearch.test.tsx (client-side token attachment).
+  // This test only needs to prove the signed-out header search is honest
+  // about the block.
+  it("blocks adding a new title from the header search while signed out", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -100,22 +109,18 @@ describe("global catalog search", () => {
         name: `Add ${result.title} to library`,
       }),
     );
-    expect(importTitle).toHaveBeenCalledWith(result);
+
     expect(
-      await screen.findByRole("button", {
+      await screen.findByText(
+        "Sign in to add new titles from search to your library.",
+      ),
+    ).toBeInTheDocument();
+    expect(importTitle).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", {
         name: `${result.title} is in your library`,
       }),
-    ).toBeDisabled();
-
-    await user.click(
-      screen.getByRole("button", { name: `View ${result.title}` }),
-    );
-    expect(
-      await screen.findByRole("heading", { name: result.title }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Library state" })).toHaveValue(
-      "planned",
-    );
+    ).not.toBeInTheDocument();
   });
 
   it("opens with slash, focuses the query, and closes with Escape", async () => {
