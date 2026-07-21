@@ -17,6 +17,16 @@ vi.mock("../catalog/search", () => ({
   getCatalogSearchClient: () => ({ search, importTitle }),
 }));
 
+// The catalog import endpoint now requires an authenticated Neon Auth
+// caller (see worker/src/auth.ts), so a signed-out/demo session can never
+// complete a full search-to-import-to-detail-page round trip through
+// `<App />` -- that would just be testing a 401. The authenticated happy
+// path is covered instead at the two layers that actually exercise it:
+// worker/src/index.test.ts ("allows a valid authenticated import end to
+// end", real JWT verification) and src/hooks/useCatalogSearch.test.tsx
+// ("imports a new title with the caller's fresh access token once
+// authenticated", the client-side token-attachment wiring). This file only
+// needs to prove the signed-out UI is honest about the block.
 describe("Discover catalog search", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -25,7 +35,7 @@ describe("Discover catalog search", () => {
     importTitle.mockReset();
   });
 
-  it("searches TMDB, imports a complete title, and opens its detail page", async () => {
+  it("blocks adding a new title while signed out instead of calling the catalog", async () => {
     const result = {
       provider: "tmdb" as const,
       providerId: 42,
@@ -36,30 +46,7 @@ describe("Discover catalog search", () => {
       synopsis: "A patient journey north.",
       poster: "https://image.tmdb.org/t/p/w500/north.jpg",
     };
-    const media = {
-      id: "tmdb-movie-42",
-      title: "Northern Light",
-      year: 2026,
-      format: "movie" as const,
-      poster: result.poster,
-      backdrop: "https://image.tmdb.org/t/p/w1280/north.jpg",
-      accent: "#7e8061",
-      runtime: 108,
-      genres: ["Drama"],
-      moods: ["Drama"],
-      pace: "balanced" as const,
-      intensity: "balanced" as const,
-      adventurous: 5,
-      synopsis: result.synopsis,
-      creators: ["Director One"],
-      cast: ["Actor One"],
-      services: ["MUBI"],
-      country: "Norway",
-      language: "Norwegian",
-      provider: { name: "tmdb" as const, id: 42, mediaType: "movie" as const },
-    };
     search.mockResolvedValue({ results: [result], source: "tmdb" });
-    importTitle.mockResolvedValue(media);
     const user = userEvent.setup();
     render(<App />);
 
@@ -73,15 +60,15 @@ describe("Discover catalog search", () => {
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add" }));
-    expect(importTitle).toHaveBeenCalledWith(result);
-    const libraryLink = await screen.findByRole("link", { name: "In library" });
-    await user.click(libraryLink);
 
     expect(
-      await screen.findByRole("heading", { name: "Northern Light" }),
+      await screen.findByText(
+        "Sign in to add new titles from search to your library.",
+      ),
     ).toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Library state" })).toHaveValue(
-      "planned",
-    );
+    expect(importTitle).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("link", { name: "In library" }),
+    ).not.toBeInTheDocument();
   });
 });

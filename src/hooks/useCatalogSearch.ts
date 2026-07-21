@@ -1,14 +1,49 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../auth/AuthProvider";
 import {
   getCatalogSearchClient,
   isCatalogSearchConfigured,
 } from "../catalog/search";
 import type { MediaSearchResult } from "../catalog/search";
+import { getNeonClient } from "../lib/neon";
 import { useStore } from "../store";
 import type { MediaFormat } from "../types";
 
+const SIGN_IN_TO_ADD_MESSAGE =
+  "Sign in to add new titles from search to your library.";
+
+/**
+ * `@neondatabase/neon-js@0.6.2-beta`'s published types for the default
+ * (no explicit adapter) `createClient` overload resolve `.auth` to the raw
+ * better-auth vanilla client type, which omits `getJWTToken` -- even
+ * though it is present at runtime and is @neondatabase/auth's own
+ * documented API for exactly this purpose (see
+ * node_modules/@neondatabase/auth/dist/adapter-core-*.mjs and the
+ * package's README). This narrowly names the real runtime shape instead
+ * of reaching for `any`.
+ */
+interface NeonAuthClientWithJwtToken {
+  getJWTToken(allowAnonymous: boolean): Promise<string | null>;
+}
+
+async function fetchAccessToken(): Promise<string | null> {
+  const neonClient = await getNeonClient();
+  if (!neonClient) return null;
+  try {
+    return await (
+      neonClient.auth as unknown as NeonAuthClientWithJwtToken
+    ).getJWTToken(false);
+  } catch {
+    return null;
+  }
+}
+
 export type CatalogSearchState =
-  "idle" | "searching" | "ready" | "success" | "error";
+  | "idle"
+  | "searching"
+  | "ready"
+  | "success"
+  | "error";
 
 export function catalogResultKey(result: MediaSearchResult) {
   return `${result.mediaType}-${result.providerId}`;
@@ -20,6 +55,7 @@ export function catalogResultLocalId(result: MediaSearchResult) {
 
 export function useCatalogSearch() {
   const { dispatch, catalog, registerCatalogItem } = useStore();
+  const { status: authStatus } = useAuth();
   const [query, setQueryValue] = useState("");
   const [format, setFormatValue] = useState<"any" | MediaFormat>("any");
   const [searchState, setSearchState] = useState<CatalogSearchState>("idle");
@@ -96,11 +132,24 @@ export function useCatalogSearch() {
     if (!client) return null;
     const key = catalogResultKey(result);
     const localId = catalogResultLocalId(result);
+    const existing = catalog.find((item) => item.id === localId);
+    // A brand-new title requires a trusted, authenticated catalog write.
+    // Fail fast with an honest message instead of a wasted round trip to
+    // the same 401 the server would return anyway.
+    if (!existing && authStatus !== "authenticated") {
+      setSearchState("error");
+      setSearchMessage(SIGN_IN_TO_ADD_MESSAGE);
+      return null;
+    }
     setBusyKey(key);
     setSearchMessage(`Preparing ${result.title}…`);
     try {
-      const existing = catalog.find((item) => item.id === localId);
-      const item = existing ?? (await client.importTitle(result));
+      const item =
+        existing ??
+        (await client.importTitle(
+          result,
+          authStatus === "authenticated" ? await fetchAccessToken() : null,
+        ));
       if (!existing) await registerCatalogItem(item);
       dispatch({ type: "add", mediaId: item.id });
       setSearchState("success");
