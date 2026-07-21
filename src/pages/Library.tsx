@@ -25,7 +25,8 @@ import { useStore } from "../store";
 import type { LibraryStatus, Media } from "../types";
 
 type View = "shelves" | "gallery" | "queue" | "timeline" | "calendar" | "taste";
-const demoNow = Date.parse("2026-07-16T20:00:00.000Z");
+const isStale = (savedAt: string) =>
+  Date.now() - Date.parse(savedAt) > 150 * 86400000;
 const views: { id: View; label: string; icon: typeof Rows3 }[] = [
   { id: "shelves", label: "Shelves", icon: Rows3 },
   { id: "gallery", label: "Gallery", icon: Grid2X2 },
@@ -52,11 +53,9 @@ export function Library() {
       }),
     [catalog, query, state.userMedia, status],
   );
-  const stale = Object.values(state.userMedia).filter(
-    (item) =>
-      item.status === "planned" &&
-      demoNow - Date.parse(item.savedAt) > 150 * 86400000,
-  ).length;
+  const staleTitles = Object.values(state.userMedia).filter(
+    (item) => item.status === "planned" && isStale(item.savedAt),
+  );
 
   return (
     <div className="page library-page">
@@ -82,10 +81,12 @@ export function Library() {
 
       <section className="library-health" aria-label="Library health">
         <div className="health-lead">
-          <span className="health-score">82</span>
+          <span className="health-score">
+            {Object.keys(state.userMedia).length}
+          </span>
           <div>
-            <p className="eyebrow">WATCHLIST HEALTH</p>
-            <strong>Focused and useful</strong>
+            <p className="eyebrow">IN YOUR LIBRARY</p>
+            <strong>Titles saved</strong>
           </div>
         </div>
         <div className="health-items">
@@ -93,7 +94,7 @@ export function Library() {
             <strong>{state.queue.length}</strong> Up next
           </span>
           <span>
-            <strong>{stale}</strong> Ready to revisit
+            <strong>{staleTitles.length}</strong> Ready to revisit
           </span>
           <button type="button" disabled title="Coming soon">
             <Sparkles size={16} />
@@ -142,28 +143,38 @@ export function Library() {
       {view === "calendar" && <CalendarView />}
       {view === "taste" && <TasteView />}
 
-      <section className="stale-callout">
-        <Archive size={24} />
-        <div>
-          <p className="eyebrow">A GENTLE CLEAN-UP</p>
-          <h2>Three titles have been waiting a while.</h2>
-          <p>
-            Your history stays intact. Archive them now and they can return when
-            the timing is right.
-          </p>
-        </div>
-        <button
-          className="secondary-button"
-          type="button"
-          onClick={() =>
-            ["aftersun", "portrait"].forEach((mediaId) =>
-              dispatch({ type: "status", mediaId, status: "archived" }),
-            )
-          }
-        >
-          Review forgotten saves
-        </button>
-      </section>
+      {staleTitles.length > 0 && (
+        <section className="stale-callout">
+          <Archive size={24} />
+          <div>
+            <p className="eyebrow">A GENTLE CLEAN-UP</p>
+            <h2>
+              {staleTitles.length}{" "}
+              {staleTitles.length === 1 ? "title has" : "titles have"} been
+              waiting a while.
+            </h2>
+            <p>
+              Your history stays intact. Archive them now and they can return
+              when the timing is right.
+            </p>
+          </div>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() =>
+              staleTitles.forEach((item) =>
+                dispatch({
+                  type: "status",
+                  mediaId: item.mediaId,
+                  status: "archived",
+                }),
+              )
+            }
+          >
+            Review forgotten saves
+          </button>
+        </section>
+      )}
     </div>
   );
 }
@@ -399,44 +410,59 @@ function TimelineView() {
   );
 }
 
+const isSameDay = (a: Date, b: Date) =>
+  a.toISOString().slice(0, 10) === b.toISOString().slice(0, 10);
+
 function CalendarView() {
-  const { catalog } = useStore();
-  const dates = Array.from({ length: 14 }, (_, i) => ({
-    day: 13 + i,
-    weekday: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i % 7],
-  }));
+  const { state, catalog } = useStore();
+  const today = new Date();
+  const monthLabel = new Intl.DateTimeFormat("en", {
+    month: "long",
+    year: "numeric",
+  })
+    .format(today)
+    .toUpperCase();
+  const weekday = new Intl.DateTimeFormat("en", { weekday: "short" });
+  const dates = Array.from({ length: 14 }, (_, i) => {
+    const date = new Date(today);
+    date.setDate(date.getDate() - 7 + i);
+    return date;
+  });
   return (
     <section className="calendar-view">
-      <SectionHeader label="JULY 2026" title="Past watches & future stories" />
+      <SectionHeader label={monthLabel} title="Past watches & future stories" />
       <div className="calendar-grid">
-        {dates.map((date, index) => (
-          <div className={index === 3 ? "today" : ""} key={date.day}>
-            <span>{date.weekday}</span>
-            <strong>{date.day}</strong>
-            {index === 3 && <small>Today</small>}
-            {index === 4 && (
-              <Link to="/title/severance">
-                <img
-                  src={catalog.find((item) => item.id === "severance")?.poster}
-                  alt="Severance"
-                />
-                <span>New episode</span>
-              </Link>
-            )}
-            {index === 6 && (
-              <Link to="/friends">
-                <UsersIcon /> <span>Friday film</span>
-              </Link>
-            )}
-          </div>
-        ))}
+        {dates.map((date) => {
+          const dayEvents = state.events.filter((event) =>
+            isSameDay(new Date(event.watchedAt), date),
+          );
+          const item = dayEvents[0]
+            ? catalog.find((entry) => entry.id === dayEvents[0]!.mediaId)
+            : undefined;
+          return (
+            <div
+              className={isSameDay(date, today) ? "today" : ""}
+              key={date.toISOString()}
+            >
+              <span>{weekday.format(date)}</span>
+              <strong>{date.getDate()}</strong>
+              {isSameDay(date, today) && <small>Today</small>}
+              {item && (
+                <Link to={`/title/${item.id}`}>
+                  <img src={item.poster} alt={item.title} />
+                  <span>
+                    {dayEvents.length > 1
+                      ? `${dayEvents.length} watched`
+                      : "Watched"}
+                  </span>
+                </Link>
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
-}
-
-function UsersIcon() {
-  return <span className="calendar-people">3</span>;
 }
 
 function TasteView() {

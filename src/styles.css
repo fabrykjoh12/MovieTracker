@@ -1892,15 +1892,6 @@ blockquote {
   height: 40px;
   object-fit: cover;
 }
-.calendar-people {
-  width: 27px;
-  height: 27px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #5d4e69;
-  color: white;
-}
 .taste-view {
   max-width: 950px;
   margin: 0 auto;
