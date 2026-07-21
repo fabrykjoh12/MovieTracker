@@ -5,6 +5,7 @@ import {
   canTransition,
   candidateEligible,
   completeSeason,
+  continueWatchingCandidate,
   isSpoilerVisible,
   markNextEpisode,
   matchRoomCandidates,
@@ -339,5 +340,71 @@ describe("weekly watch summary", () => {
 
     expect(summary.totalMinutes).toBe(0);
     expect(summary.dailyMinutes).toEqual([0, 0, 0, 0, 0, 0, 0]);
+  });
+});
+
+describe("continue watching candidate", () => {
+  const watching = (
+    mediaId: string,
+    overrides: Partial<UserMediaState> = {},
+  ): UserMediaState => ({
+    mediaId,
+    status: "watching",
+    progress: { season: 1, episode: 1 },
+    watchedDates: ["2026-07-10T00:00:00.000Z"],
+    savedAt: "2026-07-01T00:00:00.000Z",
+    ...overrides,
+  });
+
+  it("returns undefined for a brand-new account with nothing in progress", () => {
+    expect(continueWatchingCandidate({}, media)).toBeUndefined();
+  });
+
+  it("returns the real in-progress series, not a fixed title", () => {
+    const result = continueWatchingCandidate({ dark: watching("dark") }, media);
+    expect(result?.id).toBe("dark");
+  });
+
+  it("picks the most recently active title among several in progress", () => {
+    const result = continueWatchingCandidate(
+      {
+        severance: watching("severance", {
+          watchedDates: ["2020-01-01T00:00:00.000Z"],
+        }),
+        dark: watching("dark", {
+          watchedDates: ["2026-07-20T00:00:00.000Z"],
+        }),
+      },
+      media,
+    );
+    expect(result?.id).toBe("dark");
+  });
+
+  it("excludes a movie marked watching, since it has no next episode to show", () => {
+    const result = continueWatchingCandidate(
+      { "dune-part-two": watching("dune-part-two") },
+      media,
+    );
+    expect(result).toBeUndefined();
+  });
+
+  it("excludes a series that has already finished airing what it has", () => {
+    const result = continueWatchingCandidate(
+      {
+        severance: watching("severance", {
+          progress: { season: 2, episode: 10 },
+        }),
+      },
+      media,
+    );
+    expect(result).toBeUndefined();
+  });
+
+  it("excludes titles that are not actively being watched", () => {
+    const result = continueWatchingCandidate(
+      { dark: watching("dark", { status: "planned" }) },
+      media,
+    );
+    expect(result).toBeUndefined();
   });
 });

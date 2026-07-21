@@ -1105,6 +1105,10 @@ blockquote {
   background-position: center;
   box-shadow: var(--shadow);
 }
+.continue-hero-empty {
+  min-height: 250px;
+  margin-bottom: 66px;
+}
 .continue-hero::after {
   content: "";
   position: absolute;

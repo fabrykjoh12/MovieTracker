@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Check,
   Clock3,
+  Compass,
   Info,
   Play,
   RotateCcw,
@@ -12,6 +13,7 @@ import {
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import {
+  continueWatchingCandidate,
   nextEpisode,
   progressPercent,
   recommendationReason,
@@ -39,17 +41,33 @@ const timeOfDayGreeting = () => {
   return "Good evening";
 };
 
+const relativeDaysAgo = (isoDate?: string) => {
+  if (!isoDate) return undefined;
+  const days = Math.floor(
+    (Date.now() - new Date(isoDate).getTime()) / 86_400_000,
+  );
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return weeks === 1 ? "a week ago" : `${weeks} weeks ago`;
+  const months = Math.floor(days / 30);
+  return months <= 1 ? "a month ago" : `${months} months ago`;
+};
+
 export function Home() {
   const { state, dispatch, catalog } = useStore();
   const { user } = useAuth();
   const displayName = user?.name?.trim() || user?.email?.split("@")[0];
-  const hero = catalog.find((item) => item.id === "severance")!;
-  const heroState = state.userMedia[hero.id];
-  const upcoming = nextEpisode(hero, heroState?.progress);
+  const hero = continueWatchingCandidate(state.userMedia, catalog);
+  const heroState = hero ? state.userMedia[hero.id] : undefined;
+  const upcoming = hero ? nextEpisode(hero, heroState?.progress) : undefined;
   const picks = tonightCandidates(catalog, state);
-  const progress = progressPercent(hero, heroState?.progress);
+  const progress = hero ? progressPercent(hero, heroState?.progress) : 0;
+  const lastWatched = relativeDaysAgo(heroState?.watchedDates.at(-1));
 
-  const trackHero = () => dispatch({ type: "mark-next", mediaId: hero.id });
+  const trackHero = () =>
+    hero && dispatch({ type: "mark-next", mediaId: hero.id });
 
   return (
     <div className="page home-page">
@@ -61,80 +79,102 @@ export function Home() {
             {displayName ? `, ${displayName}` : ""}.
           </h1>
         </div>
-        <p>One episode waiting. A quiet night to fill.</p>
+        <p>
+          {hero
+            ? "Pick up where you left off."
+            : "Nothing in progress. A quiet night to fill."}
+        </p>
       </section>
 
-      <section
-        className="continue-hero"
-        style={
-          {
-            "--hero-image": `url(${hero.backdrop})`,
-            "--hero-accent": hero.accent,
-          } as React.CSSProperties
-        }
-      >
-        <div className="hero-shade" />
-        <div className="hero-copy">
-          <p className="eyebrow">
-            <span className="live-dot" /> CONTINUE WATCHING
-          </p>
-          <h2>{hero.title}</h2>
-          <div className="episode-line">
-            <strong>
-              S{upcoming?.season.number} E{upcoming?.episode?.number}
-            </strong>
-            <span>{upcoming?.episode?.title}</span>
-          </div>
-          <p className="hero-description">{upcoming?.episode?.synopsis}</p>
-          <div className="hero-meta">
-            <span>
-              <Clock3 size={15} />
-              {upcoming?.episode?.runtime} min
-            </span>
-            <span className="service-mark">tv+</span>
-            <span>Last watched 2 days ago</span>
-          </div>
-          <div className="hero-actions">
-            <button
-              className="primary-button"
-              type="button"
-              onClick={trackHero}
-            >
-              <Check size={18} />
-              Mark episode watched
-            </button>
-            <Link className="secondary-button" to={`/title/${hero.id}`}>
-              <Info size={18} />
-              Details
-            </Link>
-          </div>
-          <div className="hero-progress">
-            <div>
-              <span>
-                Season {heroState?.progress?.season} ·{" "}
-                {heroState?.progress?.episode} of{" "}
-                {upcoming?.season.episodes.length}
-              </span>
-              <span>{progress}% overall</span>
+      {hero && upcoming ? (
+        <section
+          className="continue-hero"
+          style={
+            {
+              "--hero-image": `url(${hero.backdrop})`,
+              "--hero-accent": hero.accent,
+            } as React.CSSProperties
+          }
+        >
+          <div className="hero-shade" />
+          <div className="hero-copy">
+            <p className="eyebrow">
+              <span className="live-dot" /> CONTINUE WATCHING
+            </p>
+            <h2>{hero.title}</h2>
+            <div className="episode-line">
+              <strong>
+                S{upcoming.season.number} E{upcoming.episode.number}
+              </strong>
+              <span>{upcoming.episode.title}</span>
             </div>
-            <i>
-              <b
-                style={{
-                  width: `${((heroState?.progress?.episode ?? 0) / (upcoming?.season.episodes.length ?? 1)) * 100}%`,
-                }}
-              />
-            </i>
+            <p className="hero-description">{upcoming.episode.synopsis}</p>
+            <div className="hero-meta">
+              <span>
+                <Clock3 size={15} />
+                {upcoming.episode.runtime} min
+              </span>
+              {hero.services[0] && (
+                <span className="service-mark">{hero.services[0]}</span>
+              )}
+              {lastWatched && <span>Last watched {lastWatched}</span>}
+            </div>
+            <div className="hero-actions">
+              <button
+                className="primary-button"
+                type="button"
+                onClick={trackHero}
+              >
+                <Check size={18} />
+                Mark episode watched
+              </button>
+              <Link className="secondary-button" to={`/title/${hero.id}`}>
+                <Info size={18} />
+                Details
+              </Link>
+            </div>
+            <div className="hero-progress">
+              <div>
+                <span>
+                  Season {heroState?.progress?.season} ·{" "}
+                  {heroState?.progress?.episode} of{" "}
+                  {upcoming.season.episodes.length}
+                </span>
+                <span>{progress}% overall</span>
+              </div>
+              <i>
+                <b
+                  style={{
+                    width: `${((heroState?.progress?.episode ?? 0) / upcoming.season.episodes.length) * 100}%`,
+                  }}
+                />
+              </i>
+            </div>
           </div>
-        </div>
-        <div className="hero-episode-card">
-          <p>UP AFTER THIS</p>
-          <span>S2 E{(upcoming?.episode?.number ?? 0) + 1}</span>
-          <strong>
-            {upcoming?.season.episodes[upcoming?.episode?.number ?? 0]?.title ??
-              "The next chapter"}
-          </strong>
-        </div>
-      </section>
+          <div className="hero-episode-card">
+            <p>UP AFTER THIS</p>
+            <span>
+              S{upcoming.season.number} E{upcoming.episode.number + 1}
+            </span>
+            <strong>
+              {upcoming.season.episodes[upcoming.episode.number]?.title ??
+                "The next chapter"}
+            </strong>
+          </div>
+        </section>
+      ) : (
+        <section className="continue-hero-empty empty-state">
+          <h3>Nothing in progress</h3>
+          <p>
+            Start a series from tonight&rsquo;s picks or search to fill in your
+            Continue Watching hero.
+          </p>
+          <Link className="secondary-button" to="/discover">
+            <Compass size={18} />
+            Find something to watch
+          </Link>
+        </section>
+      )}
 
       <div className="home-zone">
         <div className="home-primary">

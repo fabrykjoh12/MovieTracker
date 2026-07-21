@@ -136,6 +136,42 @@ export const nextEpisode = (
     : undefined;
 };
 
+const lastActivity = (entry: UserMediaState) =>
+  entry.watchedDates.at(-1) ?? entry.savedAt;
+
+/**
+ * The account's real in-progress series, for the Home "Continue Watching"
+ * hero -- the most recently watched title that is actively being watched
+ * and still has a next episode to show. Returns undefined when there is
+ * none, rather than a fallback title; the caller must render an honest
+ * empty state instead of fabricating a hero.
+ */
+export const continueWatchingCandidate = (
+  userMedia: Record<string, UserMediaState>,
+  catalog: Media[],
+): Media | undefined => {
+  const candidates = Object.values(userMedia)
+    .filter(
+      (entry) => entry.status === "watching" || entry.status === "rewatching",
+    )
+    .map((entry) => ({
+      entry,
+      media: catalog.find((item) => item.id === entry.mediaId),
+    }))
+    .filter((candidate): candidate is { entry: UserMediaState; media: Media } =>
+      Boolean(
+        candidate.media?.format === "series" &&
+        nextEpisode(candidate.media, candidate.entry.progress),
+      ),
+    )
+    .sort(
+      (a, b) =>
+        lastActivity(b.entry).localeCompare(lastActivity(a.entry)) ||
+        b.entry.savedAt.localeCompare(a.entry.savedAt),
+    );
+  return candidates[0]?.media;
+};
+
 export const markNextEpisode = (
   current: UserMediaState,
   media: Media,
