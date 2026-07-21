@@ -7,6 +7,7 @@ import {
   completeSeason,
   continueWatchingCandidate,
   isSpoilerVisible,
+  libraryOverview,
   markNextEpisode,
   matchRoomCandidates,
   moveShelfItem,
@@ -17,6 +18,8 @@ import {
   progressPercent,
   scoreTonightCandidate,
   startRewatch,
+  tasteCloud,
+  topFavourites,
   undoLastTracking,
   weeklyWatchSummary,
 } from "./domain";
@@ -406,5 +409,181 @@ describe("continue watching candidate", () => {
       media,
     );
     expect(result).toBeUndefined();
+  });
+});
+
+describe("library overview", () => {
+  const now = new Date("2026-07-21T12:00:00.000Z");
+
+  it("returns honest zeros for a brand-new account", () => {
+    expect(libraryOverview({}, [], media, now)).toEqual({
+      totalWatched: 0,
+      watchedThisYear: 0,
+      filmsThisYear: 0,
+      seriesThisYear: 0,
+      totalHours: 0,
+      hoursThisYear: 0,
+      totalRewatches: 0,
+      rewatchesThisYear: 0,
+      favouritesThisYear: 0,
+    });
+  });
+
+  it("counts real completions and hours, not fabricated statistics", () => {
+    const userMedia: Record<string, UserMediaState> = {
+      "dune-part-two": {
+        mediaId: "dune-part-two",
+        status: "completed",
+        watchedDates: ["2026-06-01T00:00:00.000Z"],
+        savedAt: "2026-05-01T00:00:00.000Z",
+        verdict: {
+          kind: "all-timer",
+          normalized: normalizeVerdict("all-timer"),
+          qualities: [],
+          tags: [],
+          recordedAt: "2026-06-01T00:00:00.000Z",
+        },
+      },
+      dark: {
+        mediaId: "dark",
+        status: "planned",
+        watchedDates: [],
+        savedAt: "2020-01-01T00:00:00.000Z",
+      },
+    };
+    const events: WatchEvent[] = [
+      {
+        id: "e1",
+        mediaId: "dune-part-two",
+        type: "movie",
+        watchedAt: "2026-06-01T00:00:00.000Z",
+      },
+    ];
+    const overview = libraryOverview(userMedia, events, media, now);
+    expect(overview.totalWatched).toBe(1);
+    expect(overview.watchedThisYear).toBe(1);
+    expect(overview.filmsThisYear).toBe(1);
+    expect(overview.seriesThisYear).toBe(0);
+    expect(overview.totalHours).toBe(Math.round(duneTwo.runtime / 60));
+    expect(overview.hoursThisYear).toBe(Math.round(duneTwo.runtime / 60));
+    expect(overview.favouritesThisYear).toBe(1);
+  });
+
+  it("excludes activity from an earlier year from the this-year counts", () => {
+    const userMedia: Record<string, UserMediaState> = {
+      "dune-part-two": {
+        mediaId: "dune-part-two",
+        status: "completed",
+        watchedDates: ["2020-01-01T00:00:00.000Z"],
+        savedAt: "2020-01-01T00:00:00.000Z",
+      },
+    };
+    const overview = libraryOverview(userMedia, [], media, now);
+    expect(overview.totalWatched).toBe(1);
+    expect(overview.watchedThisYear).toBe(0);
+  });
+
+  it("counts rewatch events overall and within the current year", () => {
+    const events: WatchEvent[] = [
+      {
+        id: "e1",
+        mediaId: "dark",
+        type: "rewatch",
+        watchedAt: "2020-01-01T00:00:00.000Z",
+      },
+      {
+        id: "e2",
+        mediaId: "dark",
+        type: "rewatch",
+        watchedAt: "2026-07-01T00:00:00.000Z",
+      },
+    ];
+    const overview = libraryOverview({}, events, media, now);
+    expect(overview.totalRewatches).toBe(2);
+    expect(overview.rewatchesThisYear).toBe(1);
+  });
+});
+
+describe("top favourites", () => {
+  it("returns an empty personal canon for a brand-new account", () => {
+    expect(topFavourites({}, media, 4)).toEqual([]);
+  });
+
+  it("ranks an explicit rank ahead of an unranked stronger verdict", () => {
+    const userMedia: Record<string, UserMediaState> = {
+      dark: {
+        mediaId: "dark",
+        status: "completed",
+        watchedDates: [],
+        savedAt: "2026-01-01",
+        verdict: {
+          kind: "liked",
+          normalized: normalizeVerdict("liked"),
+          qualities: [],
+          tags: [],
+          recordedAt: "2026-01-01",
+          rank: 1,
+        },
+      },
+      "dune-part-two": {
+        mediaId: "dune-part-two",
+        status: "completed",
+        watchedDates: [],
+        savedAt: "2026-01-01",
+        verdict: {
+          kind: "all-timer",
+          normalized: normalizeVerdict("all-timer"),
+          qualities: [],
+          tags: [],
+          recordedAt: "2026-01-01",
+        },
+      },
+    };
+    const result = topFavourites(userMedia, media, 4);
+    expect(result[0]?.id).toBe("dark");
+  });
+
+  it("excludes titles with no recorded verdict", () => {
+    const userMedia: Record<string, UserMediaState> = {
+      dark: {
+        mediaId: "dark",
+        status: "planned",
+        watchedDates: [],
+        savedAt: "2026-01-01",
+      },
+    };
+    expect(topFavourites(userMedia, media, 4)).toEqual([]);
+  });
+});
+
+describe("taste cloud", () => {
+  it("returns nothing for a brand-new account instead of a fixed editorial list", () => {
+    expect(tasteCloud({}, media)).toEqual([]);
+  });
+
+  it("builds real genre and mood tags from the account's own library", () => {
+    const userMedia: Record<string, UserMediaState> = {
+      dark: {
+        mediaId: "dark",
+        status: "completed",
+        watchedDates: [],
+        savedAt: "2026-01-01",
+      },
+    };
+    const result = tasteCloud(userMedia, media);
+    const labels = result.map((tag) => tag.label);
+    expect(labels).toEqual(expect.arrayContaining(["Mystery", "Dark"]));
+  });
+
+  it("excludes dropped titles from the taste cloud", () => {
+    const userMedia: Record<string, UserMediaState> = {
+      dark: {
+        mediaId: "dark",
+        status: "dropped",
+        watchedDates: [],
+        savedAt: "2026-01-01",
+      },
+    };
+    expect(tasteCloud(userMedia, media)).toEqual([]);
   });
 });

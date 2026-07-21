@@ -172,6 +172,148 @@ export const continueWatchingCandidate = (
   return candidates[0]?.media;
 };
 
+export interface LibraryOverview {
+  totalWatched: number;
+  watchedThisYear: number;
+  filmsThisYear: number;
+  seriesThisYear: number;
+  totalHours: number;
+  hoursThisYear: number;
+  totalRewatches: number;
+  rewatchesThisYear: number;
+  favouritesThisYear: number;
+}
+
+/**
+ * Real, computed profile stats -- a title only counts once it has actually
+ * been completed (or is being rewatched, which implies a prior completion),
+ * and "this year" is judged by the account's own most recent activity on
+ * that title, not a fabricated number.
+ */
+export const libraryOverview = (
+  userMedia: Record<string, UserMediaState>,
+  events: WatchEvent[],
+  catalog: Media[],
+  now = new Date(),
+): LibraryOverview => {
+  const catalogById = new Map(catalog.map((item) => [item.id, item]));
+  const year = now.getFullYear();
+  const finished = Object.values(userMedia).filter(
+    (entry) => entry.status === "completed" || entry.status === "rewatching",
+  );
+  const finishedThisYear = finished.filter((entry) => {
+    const last = entry.watchedDates.at(-1);
+    return last ? new Date(last).getFullYear() === year : false;
+  });
+  const minutesFor = (candidates: WatchEvent[]) =>
+    candidates.reduce(
+      (sum, event) => sum + eventMinutes(event, catalogById.get(event.mediaId)),
+      0,
+    );
+  const eventsThisYear = events.filter(
+    (event) => new Date(event.watchedAt).getFullYear() === year,
+  );
+  const favouritesThisYear = Object.values(userMedia).filter(
+    (entry) =>
+      entry.verdict &&
+      (entry.verdict.kind === "all-timer" || entry.verdict.kind === "loved") &&
+      new Date(entry.verdict.recordedAt).getFullYear() === year,
+  ).length;
+  return {
+    totalWatched: finished.length,
+    watchedThisYear: finishedThisYear.length,
+    filmsThisYear: finishedThisYear.filter(
+      (entry) => catalogById.get(entry.mediaId)?.format === "movie",
+    ).length,
+    seriesThisYear: finishedThisYear.filter(
+      (entry) => catalogById.get(entry.mediaId)?.format === "series",
+    ).length,
+    totalHours: Math.round(minutesFor(events) / 60),
+    hoursThisYear: Math.round(minutesFor(eventsThisYear) / 60),
+    totalRewatches: events.filter((event) => event.type === "rewatch").length,
+    rewatchesThisYear: eventsThisYear.filter(
+      (event) => event.type === "rewatch",
+    ).length,
+    favouritesThisYear,
+  };
+};
+
+/**
+ * The account's real personal canon for Profile -- titles it has actually
+ * recorded a Verdict for, ordered by an explicit rank first (lower is
+ * better, matching the #1/#2 display elsewhere) and by Verdict strength
+ * otherwise. Returns an empty array rather than a fallback list; the
+ * caller must render an honest empty state instead of fabricating one.
+ */
+export const topFavourites = (
+  userMedia: Record<string, UserMediaState>,
+  catalog: Media[],
+  limit: number,
+): Media[] => {
+  const catalogById = new Map(catalog.map((item) => [item.id, item]));
+  return Object.values(userMedia)
+    .map((entry) => ({
+      entry,
+      verdict: entry.verdict,
+      media: catalogById.get(entry.mediaId),
+    }))
+    .filter(
+      (
+        candidate,
+      ): candidate is {
+        entry: UserMediaState;
+        verdict: NonNullable<UserMediaState["verdict"]>;
+        media: Media;
+      } => Boolean(candidate.verdict && candidate.media),
+    )
+    .sort((a, b) => {
+      if (a.verdict.rank !== undefined && b.verdict.rank !== undefined) {
+        return a.verdict.rank - b.verdict.rank;
+      }
+      if (a.verdict.rank !== undefined) return -1;
+      if (b.verdict.rank !== undefined) return 1;
+      return b.verdict.normalized - a.verdict.normalized;
+    })
+    .slice(0, limit)
+    .map((candidate) => candidate.media);
+};
+
+export interface TasteTag {
+  label: string;
+  size: "large" | "medium" | "small";
+}
+
+/**
+ * A real word cloud of the account's genres and moods, drawn from titles
+ * actually in its library (excluding dropped titles), sized by how often
+ * each tag recurs -- not a fixed editorial list.
+ */
+export const tasteCloud = (
+  userMedia: Record<string, UserMediaState>,
+  catalog: Media[],
+  limit = 8,
+): TasteTag[] => {
+  const catalogById = new Map(catalog.map((item) => [item.id, item]));
+  const counts = new Map<string, number>();
+  for (const entry of Object.values(userMedia)) {
+    if (entry.status === "dropped") continue;
+    const media = catalogById.get(entry.mediaId);
+    if (!media) continue;
+    for (const tag of [...media.genres, ...media.moods]) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  const sorted = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+  const max = sorted[0]?.[1] ?? 0;
+  return sorted.map(([label, count]) => ({
+    label,
+    size:
+      count >= max * 0.7 ? "large" : count >= max * 0.4 ? "medium" : "small",
+  }));
+};
+
 export const markNextEpisode = (
   current: UserMediaState,
   media: Media,
