@@ -3057,6 +3057,27 @@ blockquote {
   border-color: color-mix(in srgb, var(--good) 45%, transparent);
   color: var(--good);
 }
+.sync-block-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0.7rem 1.25rem;
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  border-bottom: 2px solid var(--text-muted);
+}
+.sync-block-banner.error {
+  border-bottom-color: var(--accent);
+}
+.sync-block-banner p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+.sync-block-banner .secondary-button {
+  flex-shrink: 0;
+}
 .account-page {
   min-height: calc(100vh - 72px);
   display: flex;

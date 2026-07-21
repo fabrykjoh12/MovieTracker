@@ -403,14 +403,30 @@ export function StoreProvider({ children }: PropsWithChildren) {
       const previous = stateRef.current;
       const next = reducer(previous, action, catalogRef.current);
       if (next === previous) return;
-      replaceState(next);
 
       const repository = cloudRepositoryRef.current;
-      if (
-        !repository ||
-        (syncStatusRef.current !== "synced" &&
-          syncStatusRef.current !== "saving")
-      ) {
+      const status = syncStatusRef.current;
+
+      // A cloud repository exists but its state is not currently known to
+      // be current -- either the initial connect is still in flight, or
+      // the last attempt to read or write it failed. Writing the edit to
+      // browser storage here would let a later successful reconnect
+      // silently overwrite it with `hydrateLibrary`, which is exactly the
+      // kind of silent data loss this app must never cause. Block the
+      // edit and say so, rather than accept it somewhere the user can't
+      // see and that will be discarded.
+      if (repository && (status === "connecting" || status === "error")) {
+        setLibrarySync({
+          status,
+          message:
+            "This change was not saved because your library is still reconnecting to the cloud. Try again in a moment.",
+        });
+        return;
+      }
+
+      replaceState(next);
+
+      if (!repository || (status !== "synced" && status !== "saving")) {
         localStateRepository.save(next);
         return;
       }

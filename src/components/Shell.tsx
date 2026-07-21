@@ -36,7 +36,10 @@ function isEditableTarget(target: EventTarget | null) {
 
 export function Shell() {
   const { status, user } = useAuth();
-  const { librarySync } = useStore();
+  const { librarySync, retryCloudSync } = useStore();
+  const editsBlocked =
+    status === "authenticated" &&
+    (librarySync.status === "connecting" || librarySync.status === "error");
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     localStorage.getItem("movietracker:theme") === "light" ? "light" : "dark",
   );
@@ -144,6 +147,29 @@ export function Shell() {
           </NavLink>
         </div>
       </header>
+
+      {editsBlocked && (
+        <div
+          className={`sync-block-banner ${librarySync.status}`}
+          role={librarySync.status === "error" ? "alert" : "status"}
+        >
+          <p>
+            {librarySync.status === "connecting"
+              ? "Connecting to your library. Changes can't be saved until this finishes."
+              : (librarySync.message ??
+                "Your library needs attention. Changes can't be saved until it reconnects.")}
+          </p>
+          {librarySync.status === "error" && (
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => void retryCloudSync()}
+            >
+              Try again
+            </button>
+          )}
+        </div>
+      )}
 
       <GlobalSearchDialog
         open={searchOpen}
