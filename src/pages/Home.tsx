@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../auth/AuthProvider";
 import {
   nextEpisode,
   progressPercent,
@@ -22,8 +23,26 @@ import { TonightControls } from "../components/TonightControls";
 import { mediaActionLabel } from "../lib/mediaActionLabel";
 import { useStore } from "../store";
 
+const todayLabel = () =>
+  new Intl.DateTimeFormat("en", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  })
+    .format(new Date())
+    .toUpperCase();
+
+const timeOfDayGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+};
+
 export function Home() {
   const { state, dispatch, catalog } = useStore();
+  const { user } = useAuth();
+  const displayName = user?.name?.trim() || user?.email?.split("@")[0];
   const hero = catalog.find((item) => item.id === "severance")!;
   const heroState = state.userMedia[hero.id];
   const upcoming = nextEpisode(hero, heroState?.progress);
@@ -36,8 +55,11 @@ export function Home() {
     <div className="page home-page">
       <section className="welcome-line">
         <div>
-          <p className="eyebrow">THURSDAY, JULY 16</p>
-          <h1>Good evening, Alex.</h1>
+          <p className="eyebrow">{todayLabel()}</p>
+          <h1>
+            {timeOfDayGreeting()}
+            {displayName ? `, ${displayName}` : ""}.
+          </h1>
         </div>
         <p>One episode waiting. A quiet night to fill.</p>
       </section>
