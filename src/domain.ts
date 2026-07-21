@@ -54,6 +54,64 @@ export const progressPercent = (media: Media, progress?: EpisodeProgress) => {
     : 0;
 };
 
+const eventMinutes = (event: WatchEvent, media?: Media) => {
+  if (!media) return 0;
+  switch (event.type) {
+    case "movie":
+      return media.runtime;
+    case "episode": {
+      const season = media.seasons?.find((s) => s.number === event.season);
+      const episode = season?.episodes.find((e) => e.number === event.episode);
+      return episode?.runtime ?? media.runtime;
+    }
+    case "season": {
+      const season = media.seasons?.find((s) => s.number === event.season);
+      return (
+        season?.episodes.reduce((sum, episode) => sum + episode.runtime, 0) ?? 0
+      );
+    }
+    // A rewatch event only marks that a rewatch started; it carries no
+    // watched duration of its own. Time watched during the rewatch is
+    // captured by the movie/episode/season events that follow it.
+    case "rewatch":
+      return 0;
+  }
+};
+
+export interface WeeklyWatchSummary {
+  totalMinutes: number;
+  /** Minutes watched per day, oldest (6 days ago) to newest (today). */
+  dailyMinutes: number[];
+}
+
+const dayKey = (isoDate: string) => isoDate.slice(0, 10);
+
+export const weeklyWatchSummary = (
+  events: WatchEvent[],
+  catalog: Media[],
+  now = new Date(),
+): WeeklyWatchSummary => {
+  const catalogById = new Map(catalog.map((item) => [item.id, item]));
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(now);
+    date.setDate(date.getDate() - (6 - index));
+    return dayKey(date.toISOString());
+  });
+  const dailyMinutes = days.map((key) =>
+    events
+      .filter((event) => dayKey(event.watchedAt) === key)
+      .reduce(
+        (sum, event) =>
+          sum + eventMinutes(event, catalogById.get(event.mediaId)),
+        0,
+      ),
+  );
+  return {
+    totalMinutes: dailyMinutes.reduce((sum, minutes) => sum + minutes, 0),
+    dailyMinutes,
+  };
+};
+
 export const nextEpisode = (
   media: Media,
   progress?: EpisodeProgress,

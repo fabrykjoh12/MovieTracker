@@ -17,11 +17,13 @@ import {
   scoreTonightCandidate,
   startRewatch,
   undoLastTracking,
+  weeklyWatchSummary,
 } from "./domain";
 import { reducer } from "./store";
-import type { Media, UserMediaState } from "./types";
+import type { Media, UserMediaState, WatchEvent } from "./types";
 
 const severance = media.find((item) => item.id === "severance")!;
+const duneTwo = media.find((item) => item.id === "dune-part-two")!;
 
 describe("episode tracking", () => {
   it("marks the exact next episode and updates progress immediately", () => {
@@ -235,5 +237,107 @@ describe("spoilers, library, shelves, and ratings", () => {
     };
     expect(nextEpisode(incomplete)).toBeUndefined();
     expect(progressPercent(incomplete)).toBe(0);
+  });
+});
+
+describe("weekly watch summary", () => {
+  const now = new Date("2026-07-21T12:00:00.000Z");
+  const isoDaysAgo = (days: number) => {
+    const date = new Date(now);
+    date.setDate(date.getDate() - days);
+    return date.toISOString();
+  };
+
+  it("sums real event durations from the catalog, not a fixed number", () => {
+    const events: WatchEvent[] = [
+      {
+        id: "e1",
+        mediaId: duneTwo.id,
+        type: "movie",
+        watchedAt: isoDaysAgo(0),
+      },
+      {
+        id: "e2",
+        mediaId: severance.id,
+        type: "episode",
+        season: 1,
+        episode: 1,
+        watchedAt: isoDaysAgo(1),
+      },
+    ];
+    const summary = weeklyWatchSummary(events, media, now);
+    const episodeOneRuntime = severance.seasons![0]!.episodes[0]!.runtime;
+
+    expect(summary.totalMinutes).toBe(duneTwo.runtime + episodeOneRuntime);
+    expect(summary.dailyMinutes).toHaveLength(7);
+    expect(summary.dailyMinutes.at(-1)).toBe(duneTwo.runtime);
+    expect(summary.dailyMinutes.at(-2)).toBe(episodeOneRuntime);
+  });
+
+  it("sums every episode when a whole season is marked complete", () => {
+    const events: WatchEvent[] = [
+      {
+        id: "e1",
+        mediaId: severance.id,
+        type: "season",
+        season: 1,
+        watchedAt: isoDaysAgo(0),
+      },
+    ];
+    const seasonTotal = severance.seasons![0]!.episodes.reduce(
+      (sum, episode) => sum + episode.runtime,
+      0,
+    );
+
+    expect(weeklyWatchSummary(events, media, now).totalMinutes).toBe(
+      seasonTotal,
+    );
+  });
+
+  it("excludes events older than seven days", () => {
+    const events: WatchEvent[] = [
+      {
+        id: "e1",
+        mediaId: duneTwo.id,
+        type: "movie",
+        watchedAt: isoDaysAgo(8),
+      },
+    ];
+
+    expect(weeklyWatchSummary(events, media, now).totalMinutes).toBe(0);
+  });
+
+  it("does not count a rewatch marker as watched time on its own", () => {
+    const events: WatchEvent[] = [
+      {
+        id: "e1",
+        mediaId: severance.id,
+        type: "rewatch",
+        watchedAt: isoDaysAgo(0),
+      },
+    ];
+
+    expect(weeklyWatchSummary(events, media, now).totalMinutes).toBe(0);
+  });
+
+  it("ignores events for media no longer in the catalog instead of throwing", () => {
+    const events: WatchEvent[] = [
+      {
+        id: "e1",
+        mediaId: "not-in-catalog",
+        type: "movie",
+        watchedAt: isoDaysAgo(0),
+      },
+    ];
+
+    expect(() => weeklyWatchSummary(events, media, now)).not.toThrow();
+    expect(weeklyWatchSummary(events, media, now).totalMinutes).toBe(0);
+  });
+
+  it("returns an honest zero for a brand-new account with no events", () => {
+    const summary = weeklyWatchSummary([], media, now);
+
+    expect(summary.totalMinutes).toBe(0);
+    expect(summary.dailyMinutes).toEqual([0, 0, 0, 0, 0, 0, 0]);
   });
 });
