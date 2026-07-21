@@ -86,11 +86,14 @@ describe("Home", () => {
     expect(dispatch).toHaveBeenCalled();
   });
 
-  it("honestly disables the not-yet-built reminder control", () => {
+  it("does not show fabricated episode reminders, availability alerts, or friend activity", () => {
     renderHome();
     expect(
-      screen.getByRole("button", { name: "Set reminder for Severance" }),
-    ).toBeDisabled();
+      screen.getByRole("heading", { name: "Nothing to report yet" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Sara/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Maya/)).not.toBeInTheDocument();
+    expect(screen.queryByText("NOW AVAILABLE")).not.toBeInTheDocument();
   });
 
   it("shows an honest empty state instead of a fabricated hero when nothing is in progress", () => {

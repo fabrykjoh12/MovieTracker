@@ -956,8 +956,7 @@ blockquote {
   pointer-events: none;
 }
 .priority-badge,
-.verdict-badge,
-.quiet-badge {
+.verdict-badge {
   padding: 5px 8px;
   background: rgba(17, 17, 15, 0.84);
   color: #f5f1e7;
@@ -1438,18 +1437,6 @@ blockquote {
   color: var(--muted);
   font-size: 0.66rem;
 }
-.event-type {
-  color: var(--accent-soft);
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-}
-.event-type.available {
-  color: var(--good);
-}
-.event-type.party {
-  color: var(--blue);
-}
 .event-list article > button,
 .event-list article > a {
   width: 36px;
@@ -1464,13 +1451,6 @@ blockquote {
 .activity-panel {
   padding-left: 34px;
   border-left: 1px solid var(--line);
-}
-.activity-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--line);
 }
 .friend-avatar {
   width: 34px;
@@ -1488,22 +1468,6 @@ blockquote {
 .friend-avatar.green {
   background: #56694e;
   color: #eff7df;
-}
-.activity-item p {
-  flex: 1;
-  margin: 0;
-  color: var(--text-soft);
-  font-size: 0.73rem;
-  line-height: 1.5;
-}
-.activity-item p a {
-  color: var(--text);
-}
-.activity-item small {
-  display: block;
-  margin-top: 5px;
-  color: var(--muted);
-  font-size: 0.63rem;
 }
 .lock-dot {
   color: var(--accent);
@@ -5007,51 +4971,10 @@ blockquote {
   padding: 18px;
   align-self: start;
 }
-.rail-agenda article {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 11px 0;
-  border-top: 1px solid var(--line);
-}
-.rail-agenda article:first-child {
-  border-top: 0;
-}
-.rail-agenda time {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 28px;
-}
-.rail-agenda time strong {
-  font-family: var(--serif);
-  font-size: 20px;
-  color: var(--text-soft);
-}
-.rail-agenda time span {
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-}
-.rail-agenda article > div {
-  flex: 1;
-}
-.rail-agenda h3 {
-  font-size: 13px;
-  font-weight: 600;
-  margin-top: 2px;
-}
-.rail-agenda p {
-  color: var(--muted);
-  font-size: 11px;
-}
-.rail-divider {
-  height: 1px;
-  background: var(--line);
-  margin: 16px 0;
-}
-.rail-subhead {
-  margin-bottom: 12px;
+.home-rail-empty {
+  min-height: 0;
+  margin-bottom: 16px;
+  padding: 24px 16px;
 }
 @media (max-width: 900px) {
   .home-zone {

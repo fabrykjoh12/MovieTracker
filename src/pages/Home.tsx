@@ -1,14 +1,12 @@
 import {
   ArrowRight,
   BookmarkPlus,
-  CalendarDays,
   Check,
   Clock3,
   Compass,
   Info,
   Play,
   RotateCcw,
-  Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
@@ -232,69 +230,11 @@ export function Home() {
 
         <aside className="home-rail">
           <SectionHeader label="THIS WEEK" title="Worth knowing" />
-          <div className="rail-agenda">
-            <article>
-              <time>
-                <strong>17</strong>
-                <span>FRI</span>
-              </time>
-              <div>
-                <span className="event-type">NEW EPISODE</span>
-                <h3>Severance</h3>
-                <p>“Woe’s Hollow” · Apple TV+</p>
-              </div>
-              <button
-                type="button"
-                aria-label="Set reminder for Severance"
-                title="Reminders are coming soon"
-                disabled
-              >
-                <CalendarDays size={16} />
-              </button>
-            </article>
-            <article>
-              <time>
-                <strong>19</strong>
-                <span>SUN</span>
-              </time>
-              <div>
-                <span className="event-type available">NOW AVAILABLE</span>
-                <h3>Past Lives</h3>
-                <p>Saved 3 months ago · MUBI</p>
-              </div>
-              <span className="quiet-badge">Up Next</span>
-            </article>
-            <article>
-              <time>
-                <strong>21</strong>
-                <span>TUE</span>
-              </time>
-              <div>
-                <span className="event-type party">WATCH TOGETHER</span>
-                <h3>Friday film shortlist</h3>
-                <p>Sara and Maya are ready to vote</p>
-              </div>
-              <Link to="/friends" aria-label="Open watch together room">
-                <Users size={16} />
-              </Link>
-            </article>
-          </div>
-
-          <div className="rail-divider" />
-          <p className="section-kicker rail-subhead">FROM FRIENDS</p>
-          <div className="activity-item">
-            <span className="friend-avatar warm">SA</span>
+          <div className="empty-state home-rail-empty">
+            <h3>Nothing to report yet</h3>
             <p>
-              <strong>Sara</strong> strongly recommends{" "}
-              <Link to="/title/portrait">Portrait of a Lady on Fire</Link>
-              <small>“The final scene alone.” · spoiler-free</small>
-            </p>
-          </div>
-          <div className="activity-item">
-            <span className="friend-avatar blue">MY</span>
-            <p>
-              <strong>Maya</strong> finished the Severance episode you’re on
-              <small>Her reaction unlocks when you finish</small>
+              Episode reminders, availability alerts, and friend activity
+              aren&rsquo;t live yet. This space will fill in as those launch.
             </p>
           </div>
           <Link className="text-link" to="/friends">
