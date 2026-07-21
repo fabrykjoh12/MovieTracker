@@ -11,6 +11,7 @@
     "worker:deploy": "wrangler deploy --config worker/wrangler.jsonc",
     "catalog:sync": "node --env-file-if-exists=.env.local scripts/sync-tmdb-catalog.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"worker/**/*.{ts,jsonc}\" \"scripts/**/*.{js,mjs}\" \"catalog/**/*.json\" \"*.{json,js,ts,html,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"worker/**/*.{ts,jsonc}\" \"scripts/**/*.{js,mjs}\" \"catalog/**/*.json\" \"*.{json,js,ts,html,md}\"",
     "lint": "eslint .",
     "typecheck": "tsc -b --pretty false && tsc -p tsconfig.worker.json --noEmit --pretty false",
     "test": "vitest run",

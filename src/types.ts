@@ -10,7 +10,12 @@ export type LibraryStatus =
   | "archived";
 
 export type VerdictKind =
-  "all-timer" | "loved" | "liked" | "mixed" | "not-for-me" | "dropped";
+  | "all-timer"
+  | "loved"
+  | "liked"
+  | "mixed"
+  | "not-for-me"
+  | "dropped";
 
 export type Quality =
   | "Story"
